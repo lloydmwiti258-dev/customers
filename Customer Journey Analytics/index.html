@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Customer Journey Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@700&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#050a0f;
+  --surface:#0d1520;
+  --surface2:#121d2e;
+  --border:#1e2d42;
+  --accent:#00e5c0;
+  --accent2:#ff6b4a;
+  --accent3:#7c5cff;
+  --accent4:#f5c842;
+  --text:#e8f0fe;
+  --muted:#6b82a0;
+  --hot:#ff4757;
+  --warm:#ffa502;
+  --cold:#54a0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* Animated background */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 10% 20%,rgba(0,229,192,0.04) 0%,transparent 50%),
+              radial-gradient(ellipse at 90% 80%,rgba(124,92,255,0.05) 0%,transparent 50%);
+  pointer-events:none;z-index:0;
+}
+
+/* Header */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(5,10,15,0.85);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:0 2rem;display:flex;align-items:center;height:64px;
+}
+.header-spacer{flex:1}
+.logo-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+.logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:0.05em;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  white-space:nowrap;
+}
+.logo-sub{
+  font-family:'Outfit',sans-serif;font-weight:700;font-size:0.85rem;
+  text-transform:uppercase;letter-spacing:0.18em;color:#94a3b8;
+  white-space:nowrap;
+}
+.header-right{display:flex;align-items:center;gap:1rem;flex:1;justify-content:flex-end}
+.company-badge{
+  width:58px;height:58px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);
+  box-shadow:0 0 0 2px rgba(59,130,246,0.35),0 4px 18px rgba(59,130,246,0.3);
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.company-badge::before{
+  content:'';position:absolute;inset:4px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.25);pointer-events:none;
+}
+.company-text{
+  display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1;
+}
+.cn-top,.cn-bot{
+  font-family:'Cinzel',serif;font-weight:700;color:#fff;
+  letter-spacing:0.08em;font-size:0.55rem;text-transform:uppercase;white-space:nowrap;
+}
+.cn-line{width:26px;height:1px;background:rgba(255,255,255,0.4)}
+.last-updated{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)}
+.btn-refresh{
+  background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 16px;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;cursor:pointer;
+  transition:all 0.2s;letter-spacing:0.05em;
+}
+.btn-refresh:hover{background:#00ffda;transform:translateY(-1px)}
+.btn-refresh:disabled{opacity:0.5;cursor:not-allowed}
+
+/* Nav tabs */
+.nav{background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 2rem;display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-tab{
+  padding:14px 20px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;
+  color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;
+  letter-spacing:0.04em;text-transform:uppercase;
+}
+.nav-tab.active{color:var(--accent);border-color:var(--accent)}
+.nav-tab:hover:not(.active){color:var(--text)}
+
+/* Main layout */
+.main{padding:2rem;max-width:1600px;margin:0 auto;position:relative;z-index:1}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* Loading */
+.loading-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:60vh;gap:1.5rem;
+}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'DM Mono',monospace;color:var(--muted);font-size:0.9rem}
+
+/* Error */
+.error-box{background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);
+  border-radius:12px;padding:1.5rem;font-family:'DM Mono',monospace;font-size:0.8rem;color:#ff6b6b}
+
+/* KPI Cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:1.25rem 1.5rem;position:relative;overflow:hidden;transition:transform 0.2s,border-color 0.2s;
+}
+.kpi-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.kpi-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--c1,var(--accent)) 0%,transparent 60%);
+  opacity:0.04;
+}
+.kpi-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:0.5rem}
+.kpi-value{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1;
+  background:linear-gradient(135deg,var(--c1,var(--accent)),var(--c2,var(--accent3)));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.kpi-sub{font-size:0.72rem;color:var(--muted);margin-top:0.4rem}
+
+/* Section headers */
+.section-header{margin-bottom:1.25rem}
+.section-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;
+  color:var(--text);display:flex;align-items:center;gap:0.5rem}
+.section-badge{display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:0.65rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem;margin-bottom:1.5rem}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* Chart cards */
+.chart-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;
+}
+.chart-card h3{font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1.25rem}
+.chart-wrap{position:relative;height:240px}
+.chart-wrap canvas{max-height:240px}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
+th{padding:10px 14px;text-align:left;font-weight:700;font-size:0.7rem;
+  text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+td{padding:10px 14px;color:var(--text)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.68rem;font-weight:600}
+
+/* Lead status cards */
+.lead-status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:1.5rem}
+@media(max-width:700px){.lead-status-grid{grid-template-columns:1fr}}
+.status-card{border-radius:14px;padding:1.5rem;border:1px solid}
+.status-card.hot{background:rgba(255,71,87,0.08);border-color:rgba(255,71,87,0.3)}
+.status-card.warm{background:rgba(255,165,2,0.08);border-color:rgba(255,165,2,0.3)}
+.status-card.cold{background:rgba(84,160,255,0.08);border-color:rgba(84,160,255,0.3)}
+.status-icon{font-size:1.8rem;margin-bottom:0.5rem}
+.status-count{font-family:'Syne',sans-serif;font-size:2.5rem;font-weight:800}
+.status-card.hot .status-count{color:var(--hot)}
+.status-card.warm .status-count{color:var(--warm)}
+.status-card.cold .status-count{color:var(--cold)}
+.status-label{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)}
+.status-def{font-size:0.75rem;color:var(--muted);margin-top:0.4rem}
+
+/* ROI cards */
+.roi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;margin-bottom:1.5rem}
+.roi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem}
+.roi-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.roi-source{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem}
+.roi-badge{padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:700}
+.roi-badge.positive{background:rgba(0,229,192,0.15);color:var(--accent)}
+.roi-badge.negative{background:rgba(255,71,87,0.15);color:var(--hot)}
+.roi-badge.na{background:rgba(107,130,160,0.15);color:var(--muted)}
+.roi-stat{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.roi-stat:last-child{border-bottom:none}
+.roi-stat-label{font-size:0.75rem;color:var(--muted)}
+.roi-stat-val{font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:500}
+
+/* Journey timeline */
+.journey-bar{display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem}
+.journey-label{width:120px;font-size:0.78rem;color:var(--muted);text-align:right;flex-shrink:0}
+.journey-track{flex:1;background:var(--border);border-radius:4px;height:8px;overflow:hidden}
+.journey-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent3));
+  transition:width 0.8s cubic-bezier(0.34,1.56,0.64,1)}
+.journey-count{width:40px;font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--muted)}
+
+/* Branch bar chart */
+.branch-bars{display:flex;flex-direction:column;gap:0.6rem}
+.branch-row{display:flex;align-items:center;gap:0.75rem}
+.branch-name{width:100px;font-size:0.75rem;color:var(--muted);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.branch-track{flex:1;background:var(--border);border-radius:4px;height:22px;overflow:hidden;position:relative}
+.branch-conv{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;
+  font-size:0.7rem;font-weight:600;transition:width 0.8s}
+.branch-leads-mark{position:absolute;top:0;bottom:0;width:3px;background:var(--accent4);border-radius:2px}
+.branch-meta{width:50px;font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);text-align:right;flex-shrink:0}
+
+/* Scroll to top pulse dot */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 0 0 rgba(0,229,192,0.4);animation:pulse 2s ease-out infinite;display:inline-block;margin-right:6px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,229,192,0.4)}70%{box-shadow:0 0 0 8px rgba(0,229,192,0)}100%{box-shadow:0 0 0 0 rgba(0,229,192,0)}}
+
+/* Scrollable list */
+.lead-list{max-height:360px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.lead-item{display:flex;align-items:center;gap:0.75rem;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.lead-item:last-child{border-bottom:none}
+.lead-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:0.75rem;font-weight:700;flex-shrink:0}
+.lead-info{flex:1;min-width:0}
+.lead-name{font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-meta{font-size:0.72rem;color:var(--muted)}
+.lead-days{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);flex-shrink:0}
+
+/* Source pills grid */
+.source-pills{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.5rem}
+.source-pill{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;font-size:0.78rem;cursor:default;
+  display:flex;align-items:center;gap:6px;transition:border-color 0.2s;
+}
+.source-pill:hover{border-color:var(--accent)}
+.pill-count{font-family:'DM Mono',monospace;font-weight:700;color:var(--accent)}
+.pill-src{color:var(--muted)}
+
+/* Number animation */
+.num{display:inline-block}
+
+/* Footer */
+.footer{text-align:center;padding:2rem;color:var(--muted);font-size:0.75rem;
+  font-family:'DM Mono',monospace;border-top:1px solid var(--border);margin-top:2rem}
+
+/* Search inputs */
+.search-bar{display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.search-input{
+  background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.78rem;
+  outline:none;transition:border-color 0.2s;min-width:0;
+}
+.search-input:focus{border-color:var(--accent)}
+.search-input::placeholder{color:var(--muted)}
+.search-clear{
+  background:transparent;border:1px solid var(--border);border-radius:7px;
+  padding:7px 14px;color:var(--muted);font-size:0.75rem;cursor:pointer;
+  font-family:'Syne',sans-serif;font-weight:600;transition:all 0.2s;white-space:nowrap;
+}
+.search-clear:hover{border-color:var(--accent);color:var(--accent)}
+.search-count{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);margin-left:auto}
+
+/* Range filter buttons */
+.range-bar{display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.85rem}
+.range-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-right:0.25rem;white-space:nowrap}
+.range-btn{
+  background:transparent;border:1px solid var(--border);border-radius:6px;
+  padding:5px 13px;color:var(--muted);font-size:0.72rem;
+  font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;
+}
+.range-btn:hover{border-color:var(--accent);color:var(--text)}
+.range-btn.active{background:var(--accent);border-color:var(--accent);color:#000}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="company-badge">
+    <div class="company-text">
+      <span class="cn-top">DENRI</span>
+      <div class="cn-line"></div>
+      <span class="cn-bot">AFRICA</span>
+    </div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="logo-wrap">
+    <div class="logo">&#x29C1; CUSTOMER JOURNEY ANALYTICS</div>
+    <div class="logo-sub">Marketing Intelligence Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div class="last-updated" id="last-updated">Loading…</div>
+    <button class="btn-refresh" onclick="refresh()">&#x21BA; REFRESH</button>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="nav-tab active" onclick="tab('overview')">Overview</div>
+  <div class="nav-tab" onclick="tab('sources')">Lead Sources</div>
+  <div class="nav-tab" onclick="tab('branches')">Branches</div>
+  <div class="nav-tab" onclick="tab('journey')">Journey</div>
+  <div class="nav-tab" onclick="tab('unconverted')">Unconverted Metrics</div>
+  <div class="nav-tab" onclick="tab('leads')">Lead Status</div>
+  <div class="nav-tab" onclick="tab('roi')">Marketing ROI</div>
+</nav>
+
+<main class="main">
+
+  <!-- LOADING -->
+  <div id="loading" class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text">Connecting to Google Sheets…</div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-box" class="error-box" style="display:none"></div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-content active" style="display:none">
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Monthly Conversions</h3>
+        <div class="chart-wrap"><canvas id="monthly-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Region Performance</h3>
+        <div class="chart-wrap"><canvas id="region-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Gender Split (Conversions)</h3>
+        <div class="chart-wrap"><canvas id="gender-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Top Products Sold</h3>
+        <div class="chart-wrap"><canvas id="product-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOURCES TAB -->
+  <div id="tab-sources" class="tab-content" style="display:none">
+    <div class="section-header">
+      <div class="section-title">Lead Generation Sources</div>
+    </div>
+    <div id="source-pills" class="source-pills"></div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Source Category Breakdown</h3>
+        <div class="chart-wrap"><canvas id="src-class-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Top Sources by Volume</h3>
+        <div class="chart-wrap"><canvas id="src-bar-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>WhatsApp — Source × Activity</h3>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Source</th><th>Engagements</th><th>Top Activity</th></tr></thead>
+          <tbody id="wa-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BRANCHES TAB -->
+  <div id="tab-branches" class="tab-content" style="display:none">
+    <div class="grid-2" style="margin-bottom:1.5rem">
+      <div class="chart-card">
+        <h3>Leads Shared per Branch</h3>
+        <div id="branch-leads-bars" class="branch-bars" style="margin-top:1rem"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Conversions per Branch</h3>
+        <div id="branch-conv-bars" class="branch-bars" style="margin-top:1rem"></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Full Branch Analytics</h3>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Branch</th><th>Region</th><th>Unique Leads</th><th>WA Follow-ups</th><th>Conversions</th><th>Revenue (KES)</th><th>Conv. Rate</th></tr></thead>
+          <tbody id="branch-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Branch Breakdown — what happened after leads were shared</h3>
+      <div id="branch-funnel-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem;margin-top:1rem"></div>
+    </div>
+    <div class="chart-card">
+      <h3>WhatsApp Activity Breakdown per Branch</h3>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Branch</th><th>Activity</th><th>Count</th></tr></thead>
+          <tbody id="branch-activity-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOURNEY TAB -->
+  <div id="tab-journey" class="tab-content" style="display:none">
+    <div class="kpi-grid" id="journey-kpis"></div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Time to Convert Distribution</h3>
+        <div style="margin-top:1rem" id="journey-dist"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Journey Distribution Chart</h3>
+        <div class="chart-wrap"><canvas id="journey-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Fastest Converting Sources</h3>
+      <div style="margin-top:1rem">
+        <div id="source-speed-class" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+          <div>
+            <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem">By Source Channel — avg days to convert</div>
+            <div id="source-speed-bars"></div>
+          </div>
+          <div>
+            <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem">Detailed Source Breakdown</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Source</th><th>Conversions</th><th>Avg Days</th><th>Fastest</th><th>Slowest</th></tr></thead>
+                <tbody id="source-speed-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <h3>Lead → Purchase Journey (time from first contact to sale)</h3>
+      <div class="search-bar" style="margin-top:1rem">
+        <input id="jq-phone"  class="search-input" style="flex:1.5" placeholder="Search phone…" oninput="filterJourney()"/>
+        <input id="jq-source" class="search-input" style="flex:1.5" placeholder="Search source…" oninput="filterJourney()"/>
+        <input id="jq-days"   class="search-input" style="flex:0.7;max-width:120px" type="number" min="0" placeholder="Max days…" oninput="filterJourney()"/>
+        <button class="search-clear" onclick="clearJourney()">Clear</button>
+        <button class="search-clear" onclick="exportJourney()" style="border-color:var(--accent4);color:var(--accent4)">&#8595; Excel</button>
+        <span class="search-count" id="jq-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Customer</th><th>Phone</th><th>Lead Date</th><th>Purchase Date</th><th>Days</th><th>Shop</th><th>Source</th></tr></thead>
+          <tbody id="journey-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>All Leads That Converted — confirmed in Shops sheet</h3>
+      <div class="table-wrap" style="margin-top:1rem">
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Shop</th><th>Product</th><th>Purchase Date</th><th>Revenue (KES)</th></tr></thead>
+          <tbody id="converted-leads-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNCONVERTED METRICS TAB -->
+  <div id="tab-unconverted" class="tab-content" style="display:none">
+    <div class="section-header">
+      <div class="section-title">Unconverted Leads — What Happened to the Rest?</div>
+    </div>
+    <div class="kpi-grid" id="nc-kpis"></div>
+    <div style="margin-bottom:0.5rem;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted)">Drop-off by time since last contact</div>
+    <div class="kpi-grid" id="nc-period-cards" style="margin-bottom:1.5rem"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1rem;margin-bottom:1.5rem" id="nc-class-cards"></div>
+    <div class="grid-2" style="margin-bottom:1.5rem">
+      <div class="chart-card">
+        <h3>Unconverted by Branch</h3>
+        <div style="margin-top:1rem" id="nc-branch-bars"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Top Sources (Unconverted)</h3>
+        <div style="margin-top:1rem" id="nc-source-bars"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>All Not-Converted Leads</h3>
+      <div class="search-bar" style="margin-top:1rem">
+        <input id="nc-phone"    class="search-input" style="flex:1.5" placeholder="Search phone…"  oninput="filterNotConverted()"/>
+        <input id="nc-source-q" class="search-input" style="flex:1.5" placeholder="Search source…" oninput="filterNotConverted()"/>
+        <input id="nc-branch"   class="search-input" style="flex:1.5" placeholder="Search branch…" oninput="filterNotConverted()"/>
+        <button class="search-clear" onclick="clearNotConverted()">Clear</button>
+        <button class="search-clear" onclick="exportNotConverted()" style="border-color:var(--accent4);color:var(--accent4)">&#8595; Excel</button>
+        <span class="search-count" id="nc-count"></span>
+      </div>
+      <div class="range-bar">
+        <span class="range-label">Days since last contact:</span>
+        <button class="range-btn active" id="nc-range-all" onclick="setNcRange(null,null,this)">All</button>
+        <button class="range-btn" onclick="setNcRange(0,30,this)">0 – 30 days</button>
+        <button class="range-btn" onclick="setNcRange(0,90,this)">Last Quarter (90d)</button>
+        <button class="range-btn" onclick="setNcRange(0,180,this)">Semi-Annual (180d)</button>
+        <button class="range-btn" onclick="setNcRange(0,365,this)">Last Year (365d)</button>
+        <button class="range-btn" onclick="setNcRange(366,null,this)">Over a Year (365d+)</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Branch</th><th>Last Contact Date</th><th>Days Since Last Contact</th><th>Status</th></tr></thead>
+          <tbody id="nc-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADS STATUS TAB -->
+  <div id="tab-leads" class="tab-content" style="display:none">
+    <div class="lead-status-grid">
+      <div class="status-card hot">
+        <div class="status-icon">🔥</div>
+        <div class="status-count" id="hot-count">0</div>
+        <div class="status-label">Hot Leads</div>
+        <div class="status-def">Active in last 30 days</div>
+      </div>
+      <div class="status-card warm">
+        <div class="status-icon">☀️</div>
+        <div class="status-count" id="warm-count">0</div>
+        <div class="status-label">Warm Leads</div>
+        <div class="status-def">Active in last 90 days</div>
+      </div>
+      <div class="status-card cold">
+        <div class="status-icon">❄️</div>
+        <div class="status-count" id="cold-count">0</div>
+        <div class="status-label">Cold Leads</div>
+        <div class="status-def">Engaged but dormant</div>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="chart-card">
+        <h3>🔥 Hot Leads</h3>
+        <div class="lead-list" id="hot-list"></div>
+      </div>
+      <div class="chart-card">
+        <h3>☀️ Warm Leads</h3>
+        <div class="lead-list" id="warm-list"></div>
+      </div>
+      <div class="chart-card">
+        <h3>❄️ Cold Leads</h3>
+        <div class="lead-list" id="cold-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROI TAB -->
+  <div id="tab-roi" class="tab-content" style="display:none">
+    <div class="section-header">
+      <div class="section-title"><span class="live-dot"></span> Marketing Source ROI</div>
+    </div>
+    <div class="roi-grid" id="roi-grid"></div>
+    <div class="grid-2">
+      <div class="chart-card">
+        <h3>Revenue vs Spend by Channel</h3>
+        <div class="chart-wrap"><canvas id="roi-bar-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Lead Volume by Channel</h3>
+        <div class="chart-wrap"><canvas id="roi-leads-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="footer">Customer Journey Analytics Dashboard · Data from Google Sheets · Auto-refreshes every 5 minutes</div>
+
+<script>
+let D = null;
+const charts = {};
+let currentTab = 'overview';
+const rendered = new Set();
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function tab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('tab-' + name);
+  if (el) el.style.display = 'block';
+  const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+  const map = {overview:0,sources:1,branches:2,journey:3,unconverted:4,leads:5,roi:6};
+  if (tabs[map[name]]) tabs[map[name]].classList.add('active');
+  currentTab = name;
+  if (D && !rendered.has(name)) {
+    renderTab(name, D);
+    rendered.add(name);
+  }
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────
+async function fetchData(force=false) {
+  const endpoint = force ? '/api/refresh' : '/api/analytics';
+  const res = await fetch(endpoint);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error);
+  return json.data;
+}
+
+async function load() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('error-box').style.display = 'none';
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  try {
+    D = await fetchData();
+    currentTab = 'overview';
+    render(D);
+    document.getElementById('loading').style.display = 'none';
+    tab('overview');
+    document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('error-box').innerHTML = '⚠ Error loading data:<br>' + e.message + '<br><br>Check that your JSON credentials file path and spreadsheet ID are correct in app.py, and that the service account has access to the sheet.';
+  }
+}
+
+async function refresh() {
+  const btn = document.querySelector('.btn-refresh');
+  btn.disabled = true; btn.textContent = '↺ Refreshing…';
+  try {
+    D = await fetchData(true);
+    render(D);
+    tab(currentTab);
+    document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  } catch(e) { alert('Refresh failed: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '↺ REFRESH'; }
+}
+
+// ── Destroy chart helper ──────────────────────────────────────────────────
+function destroyChart(id) { if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+// ── Render ────────────────────────────────────────────────────────────────
+function fmt(n) { return typeof n === 'number' ? n.toLocaleString() : (n ?? '—'); }
+function fmtKES(n) { return 'KES ' + (n||0).toLocaleString(undefined,{maximumFractionDigits:0}); }
+
+function renderTab(name, d) {
+  switch(name) {
+    case 'overview':     renderKPIs(d); renderCharts(d); break;
+    case 'sources':      renderSources(d); break;
+    case 'branches':     renderBranches(d); break;
+    case 'journey':      renderJourney(d); break;
+    case 'unconverted':  renderNotConverted(d); break;
+    case 'leads':        renderLeads(d); break;
+    case 'roi':          renderROI(d); break;
+  }
+}
+
+function render(d) {
+  rendered.clear();
+  renderTab(currentTab, d);
+  rendered.add(currentTab);
+}
+
+// ── KPI Cards ─────────────────────────────────────────────────────────────
+function renderKPIs(d) {
+  const cards = [
+    {label:'Total Leads', val:fmt(d.total_leads), sub:'Unique across Leads + WhatsApp', c1:'#00e5c0', c2:'#00b8a0'},
+    {label:'WhatsApp Engagements', val:fmt(d.total_wa_engagements), sub:'From WhatsApp sheet', c1:'#25D366', c2:'#128C7E'},
+    {label:'Unique Leads', val:fmt(d.unique_leads), sub:'Across all channels', c1:'#7c5cff', c2:'#5a3fcc'},
+    {label:'Total Shop Sales', val:fmt(d.total_shop_sales), sub:'All sales incl. walk-ins', c1:'#ff6b4a', c2:'#e04a2a'},
+    {label:'Leads Converted', val:fmt(d.leads_converted), sub:'Tracked leads who purchased', c1:'#f5c842', c2:'#c9a400'},
+    {label:'Conversion Rate', val:(d.conversion_rate||0)+'%', sub:'Of matched leads', c1:'#00e5c0', c2:'#7c5cff'},
+    {label:'Avg Journey', val:d.avg_journey_days != null ? d.avg_journey_days+' days' : 'N/A', sub:'Lead to purchase', c1:'#ff6b4a', c2:'#f5c842'},
+    {label:'Hot Leads', val:fmt(d.hot_leads?.count||0), sub:'Active ≤30 days', c1:'#ff4757', c2:'#c0392b'},
+  ];
+  document.getElementById('kpi-grid').innerHTML = cards.map(c => `
+    <div class="kpi-card" style="--c1:${c.c1};--c2:${c.c2}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.val}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────
+const colors = ['#00e5c0','#7c5cff','#ff6b4a','#f5c842','#54a0ff','#ff9ff3','#48dbfb','#ff9f43','#1dd1a1','#ffeaa7'];
+
+function mkChart(id, config) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, config);
+}
+
+function renderCharts(d) {
+  // Monthly conversions
+  const mc = d.monthly_conversions || [];
+  mkChart('monthly-chart', {
+    type:'line',
+    data:{
+      labels: mc.map(x=>x.month),
+      datasets:[
+        {label:'Conversions',data:mc.map(x=>x.conversions),borderColor:'#00e5c0',backgroundColor:'rgba(0,229,192,0.1)',fill:true,tension:0.4},
+        {label:'Revenue (÷1000)',data:mc.map(x=>Math.round(x.revenue/1000)),borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.1)',fill:true,tension:0.4}
+      ]
+    },
+    options:chartOpts()
+  });
+
+  // Region
+  const rc = d.region_conversions || {};
+  mkChart('region-chart', {
+    type:'doughnut',
+    data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc),backgroundColor:colors,borderColor:'#050a0f',borderWidth:3}]},
+    options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
+  });
+
+  // Gender
+  const gc = d.gender_split || {};
+  mkChart('gender-chart', {
+    type:'pie',
+    data:{labels:Object.keys(gc),datasets:[{data:Object.values(gc),backgroundColor:['#7c5cff','#ff6b4a','#54a0ff'],borderColor:'#050a0f',borderWidth:3}]},
+    options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
+  });
+
+  // Top products
+  const prod = d.top_products || {};
+  const pLabels = Object.keys(prod).slice(0,8);
+  const pVals = pLabels.map(k=>prod[k]);
+  mkChart('product-chart', {
+    type:'bar',
+    data:{labels:pLabels,datasets:[{label:'Sold',data:pVals,backgroundColor:colors}]},
+    options:{...chartOpts(),indexAxis:'y',plugins:{legend:{display:false}}}
+  });
+}
+
+function chartOpts() {
+  return {
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#6b82a0',font:{size:11}}}},
+    scales:{x:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+            y:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}
+  };
+}
+
+// ── Sources ───────────────────────────────────────────────────────────────
+function renderSources(d) {
+  // Pills
+  const src = d.source_breakdown || {};
+  const sorted = Object.entries(src).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('source-pills').innerHTML = sorted.map(([s,c])=>`
+    <div class="source-pill"><span class="pill-count">${c}</span><span class="pill-src">${s||'unknown'}</span></div>
+  `).join('');
+
+  // Class pie
+  const sc = d.source_class_breakdown || {};
+  const clsColors = {meta:'#0084FF',tiktok:'#ff0050',organic:'#00e5c0',other:'#6b82a0'};
+  mkChart('src-class-chart', {
+    type:'doughnut',
+    data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(k=>clsColors[k]||'#6b82a0'),borderColor:'#050a0f',borderWidth:3}]},
+    options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
+  });
+
+  // Top sources bar
+  const top10 = sorted.slice(0,12);
+  mkChart('src-bar-chart', {
+    type:'bar',
+    data:{labels:top10.map(x=>x[0]||'unknown'),datasets:[{label:'Leads',data:top10.map(x=>x[1]),backgroundColor:'#7c5cff'}]},
+    options:{...chartOpts(),indexAxis:'y',plugins:{legend:{display:false}}}
+  });
+
+  // WA table
+  const wa = d.wa_source_activity || [];
+  document.getElementById('wa-table').innerHTML = wa.map(r=>`
+    <tr><td>${r.source||'—'}</td><td><span style="font-family:'DM Mono',monospace">${r.count}</span></td><td>${r.activity_sample||'—'}</td></tr>
+  `).join('') || '<tr><td colspan="3" style="color:var(--muted);text-align:center">No WhatsApp data</td></tr>';
+}
+
+// ── Branches ──────────────────────────────────────────────────────────────
+function renderBranches(d) {
+  const bp = d.branch_performance || [];
+  const maxLeads = Math.max(...bp.map(b=>b.leads), 1);
+  const maxConv  = Math.max(...bp.map(b=>b.conversions), 1);
+  const sortedByConv = [...bp].sort((a,b)=>b.conversions-a.conversions);
+
+  // ── Quick summary bars ────────────────────────────────────────────────────
+  const sorted_leads = [...bp].sort((a,b)=>b.leads-a.leads).slice(0,15);
+  document.getElementById('branch-leads-bars').innerHTML = sorted_leads.map(b=>`
+    <div class="branch-row">
+      <div class="branch-name" title="${b.branch}">${b.branch}</div>
+      <div class="branch-track">
+        <div class="branch-conv" style="width:${b.leads/maxLeads*100}%;background:linear-gradient(90deg,#7c5cff,#5a3fcc)">${b.leads}</div>
+      </div>
+    </div>`).join('');
+
+  const sorted_conv = [...bp].sort((a,b)=>b.conversions-a.conversions).slice(0,15);
+  document.getElementById('branch-conv-bars').innerHTML = sorted_conv.map(b=>`
+    <div class="branch-row">
+      <div class="branch-name" title="${b.branch}">${b.branch}</div>
+      <div class="branch-track">
+        <div class="branch-conv" style="width:${b.conversions/maxConv*100}%;background:linear-gradient(90deg,#00e5c0,#00b8a0)">${b.conversions}</div>
+      </div>
+      <div class="branch-meta">${b.rate}%</div>
+    </div>`).join('');
+
+  // ── Full analytics table ──────────────────────────────────────────────────
+  document.getElementById('branch-table').innerHTML = sortedByConv.map(b=>{
+    const rateColor = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#ff6b4a';
+    const waColor   = b.wa_engagements > 0 ? 'var(--accent)' : 'var(--muted)';
+    return `<tr>
+      <td><strong>${b.branch}</strong></td>
+      <td><span style="color:var(--muted);font-size:0.75rem">${b.region}</span></td>
+      <td><span style="font-family:'DM Mono',monospace">${b.leads}</span></td>
+      <td><span style="font-family:'DM Mono',monospace;color:${waColor}">${b.wa_engagements||0}</span></td>
+      <td><span style="font-family:'DM Mono',monospace">${b.conversions}</span></td>
+      <td><span style="font-family:'DM Mono',monospace">${(b.revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}</span></td>
+      <td><span style="color:${rateColor};font-weight:700;font-family:'DM Mono',monospace">${b.rate}%</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center">No data</td></tr>';
+
+  // ── Branch funnel cards — what happened after leads were shared ───────────
+  document.getElementById('branch-funnel-cards').innerHTML = sortedByConv.map(b=>{
+    // b.leads = unique contacts for this branch (total_contacts); conv always <= leads
+    const total  = b.leads || 0;
+    const maxBar = Math.max(total, b.wa_engagements||0, 1);
+    const waFollowPct  = total > 0 ? Math.round((b.wa_engagements||0) / total * 100) : 0;
+    const convPct      = b.rate || 0;
+    const notConverted = b.not_converted || 0;
+    const rateColor    = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#ff6b4a';
+
+    const actTags = Object.entries(b.activities||{}).map(([act,cnt])=>
+      `<span class="tag" style="background:rgba(0,229,192,0.08);color:var(--accent);border:1px solid rgba(0,229,192,0.2);margin:2px 2px 2px 0">${act} <strong>${cnt}</strong></span>`
+    ).join('');
+
+    const funnelRow = (label, val, pct, color, bold) => `
+      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.45rem">
+        <div style="width:100px;font-size:0.7rem;color:${bold?'var(--text)':'var(--muted)'};text-align:right;flex-shrink:0;font-weight:${bold?600:400}">${label}</div>
+        <div style="flex:1;background:var(--border);border-radius:3px;height:20px;overflow:hidden;position:relative">
+          <div style="width:${Math.max(val/maxBar*100,0)}%;height:100%;background:${color};border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:0.68rem;font-weight:700;white-space:nowrap;min-width:${val>0?28:0}px">
+            ${val > 0 ? val : ''}
+          </div>
+        </div>
+        <div style="width:40px;text-align:right;font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);flex-shrink:0">${pct>0?pct+'%':''}</div>
+      </div>`;
+
+    return `
+    <div class="chart-card" style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem">${b.branch}</div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:1px">${b.region}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:${rateColor};line-height:1">${b.rate}%</div>
+          <div style="font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">conv. rate</div>
+        </div>
+      </div>
+
+      ${funnelRow('Leads Shared', b.leads, '', 'linear-gradient(90deg,#7c5cff,#5a3fcc)', true)}
+      ${funnelRow('WA Follow-ups', b.wa_engagements||0, waFollowPct, 'linear-gradient(90deg,#25D366,#128C7E)', false)}
+      ${funnelRow('Converted', b.conversions||0, convPct, 'linear-gradient(90deg,#00e5c0,#00b8a0)', true)}
+      ${funnelRow('Not Converted', notConverted, '', 'rgba(107,130,160,0.3)', false)}
+
+      ${actTags ? `
+      <div style="margin-top:0.85rem">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.4rem">WA Activities</div>
+        <div style="display:flex;flex-wrap:wrap">${actTags}</div>
+      </div>` : ''}
+
+      <div style="border-top:1px solid var(--border);margin-top:0.85rem;padding-top:0.75rem;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:0.7rem;color:var(--muted)">Lead-sourced revenue</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.85rem;color:var(--accent4);font-weight:600">
+          KES ${(b.revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:0.85rem;padding:1rem">No branch data available</div>';
+
+  // ── Activity table ────────────────────────────────────────────────────────
+  const actRows = [];
+  sortedByConv.forEach(b => {
+    const entries = Object.entries(b.activities||{});
+    if (!entries.length) return;
+    entries.forEach(([act, count], i) => {
+      actRows.push(`<tr>
+        <td>${i === 0 ? `<strong>${b.branch}</strong>` : ''}</td>
+        <td>${act||'—'}</td>
+        <td><span style="font-family:'DM Mono',monospace;color:var(--accent)">${count}</span></td>
+      </tr>`);
+    });
+  });
+  document.getElementById('branch-activity-table').innerHTML = actRows.join('') ||
+    '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:1rem">No WhatsApp activity data found</td></tr>';
+}
+
+// ── Journey search & export ───────────────────────────────────────────────
+function filterJourney() {
+  const phone   = (document.getElementById('jq-phone')?.value  || '').toLowerCase().trim();
+  const source  = (document.getElementById('jq-source')?.value || '').toLowerCase().trim();
+  const maxDays = parseInt(document.getElementById('jq-days')?.value);
+  const all     = window._journeyRows || [];
+
+  const filtered = all.filter(j => {
+    if (phone   && !j.phone.toLowerCase().includes(phone))        return false;
+    if (source  && !(j.source||'').toLowerCase().includes(source)) return false;
+    if (!isNaN(maxDays) && j.days_to_convert > maxDays)           return false;
+    return true;
+  });
+
+  window._filteredRows = filtered;
+
+  const countEl = document.getElementById('jq-count');
+  if (countEl) countEl.textContent = filtered.length + ' of ' + all.length + ' records';
+
+  document.getElementById('journey-table').innerHTML = filtered.map(j => {
+    const dc = j.days_to_convert;
+    const dColor = dc <= 7 ? '#00e5c0' : dc <= 30 ? '#f5c842' : '#ff6b4a';
+    return `<tr>
+      <td>${j.name||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.75rem">${j.phone}</span></td>
+      <td>${j.lead_date||'—'}</td>
+      <td>${j.conv_date||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-weight:700;color:${dColor}">${dc}d</span></td>
+      <td><strong>${j.shop||'—'}</strong></td>
+      <td><span style="color:var(--muted);font-size:0.78rem">${j.source||'—'}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1rem">No matching records</td></tr>';
+}
+
+function clearJourney() {
+  ['jq-phone','jq-source','jq-days'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  filterJourney();
+}
+
+function exportJourney() {
+  const rows = window._filteredRows || window._journeyRows || [];
+  if (!rows.length) { alert('No records to export'); return; }
+  const headers = ['Customer','Phone','Lead Date','Purchase Date','Days to Convert','Shop','Source'];
+  const data = [headers, ...rows.map(j => [
+    j.name||'', j.phone, j.lead_date||'', j.conv_date||'',
+    j.days_to_convert, j.shop||'', j.source||''
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [14,18,12,12,8,14,16].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Lead Journey');
+  XLSX.writeFile(wb, 'lead_journey_export.xlsx');
+}
+
+// ── Not Converted search & export ─────────────────────────────────────────
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  // Parse as local time (YYYY-MM-DD) to avoid UTC→local offset shifting the day
+  const parts = String(dateStr).split('-');
+  if (parts.length !== 3) return null;
+  const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  if (isNaN(d)) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.floor((today - d) / 86400000);
+}
+
+window._ncRange = {min: null, max: null};
+
+function setNcRange(min, max, btn) {
+  window._ncRange = {min, max};
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterNotConverted();
+}
+
+function filterNotConverted() {
+  const qPhone  = (document.getElementById('nc-phone')?.value    || '').toLowerCase().trim();
+  const qSource = (document.getElementById('nc-source-q')?.value || '').toLowerCase().trim();
+  const qBranch = (document.getElementById('nc-branch')?.value   || '').toLowerCase().trim();
+  const {min: rMin, max: rMax} = window._ncRange;
+  const all = window._notConvRows || [];
+
+  // Compute live days since last contact once per row, shared by filter + render
+  const withDs = all.map(r => ({...r, _ds: daysSince(r.last_contact) ?? r.days_since}));
+
+  const filtered = withDs.filter(r => {
+    if (qPhone  && !r.phone.toLowerCase().includes(qPhone))         return false;
+    if (qSource && !(r.source||'').toLowerCase().includes(qSource)) return false;
+    if (qBranch && !(r.branch||'').toLowerCase().includes(qBranch)) return false;
+    if (rMin !== null && r._ds < rMin)                              return false;
+    if (rMax !== null && r._ds > rMax)                              return false;
+    return true;
+  });
+
+  window._filteredNcRows = filtered;
+
+  const countEl = document.getElementById('nc-count');
+  if (countEl) countEl.textContent = filtered.length + ' of ' + all.length + ' leads';
+
+  document.getElementById('nc-table').innerHTML = filtered.map(r => {
+    const ds = r._ds;
+    const sc = ds <= 30 ? {l:'Hot',c:'#ff4757'} :
+               ds <= 90 ? {l:'Warm',c:'#ffa502'} : {l:'Cold',c:'#54a0ff'};
+    return `<tr>
+      <td>${r.name||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.75rem">${r.phone}</span></td>
+      <td><span style="color:var(--muted);font-size:0.78rem">${r.source||'—'}</span></td>
+      <td>${r.branch||'—'}</td>
+      <td>${r.last_contact||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-weight:700;color:${sc.c}">${ds}d</span></td>
+      <td><span style="background:${sc.c}22;color:${sc.c};border:1px solid ${sc.c}44;padding:2px 8px;border-radius:4px;font-size:0.68rem;font-weight:700">${sc.l}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1rem">No matching records</td></tr>';
+}
+
+function clearNotConverted() {
+  ['nc-phone','nc-source-q','nc-branch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  window._ncRange = {min: null, max: null};
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.getElementById('nc-range-all');
+  if (allBtn) allBtn.classList.add('active');
+  filterNotConverted();
+}
+
+function exportNotConverted() {
+  const rows = window._filteredNcRows || window._notConvRows || [];
+  if (!rows.length) { alert('No records to export'); return; }
+  const headers = ['Name','Phone','Source','Branch','Last Contact','Days Since Last Contact','Status'];
+  const data = [headers, ...rows.map(r => {
+    const ds = r._ds ?? daysSince(r.last_contact) ?? r.days_since;
+    const status = ds <= 30 ? 'Hot' : ds <= 90 ? 'Warm' : 'Cold';
+    return [r.name||'', r.phone, r.source||'', r.branch||'', r.last_contact||'', ds, status];
+  })];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [14,18,16,12,12,8,6].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Not Converted');
+  XLSX.writeFile(wb, 'not_converted_leads.xlsx');
+}
+
+// ── Journey ───────────────────────────────────────────────────────────────
+function renderJourney(d) {
+  document.getElementById('journey-kpis').innerHTML = [
+    {label:'Avg Days to Convert', val: d.avg_journey_days != null ? d.avg_journey_days+' days' : 'N/A', c1:'#00e5c0',c2:'#7c5cff'},
+    {label:'Fastest Conversion', val: d.min_journey_days != null ? d.min_journey_days+' days' : 'N/A', c1:'#f5c842',c2:'#ff6b4a'},
+    {label:'Slowest Conversion', val: d.max_journey_days != null ? d.max_journey_days+' days' : 'N/A', c1:'#ff6b4a',c2:'#c0392b'},
+    {label:'Leads Converted', val: fmt(d.leads_converted||0), c1:'#7c5cff',c2:'#54a0ff'},
+  ].map(c=>`<div class="kpi-card" style="--c1:${c.c1};--c2:${c.c2}"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.val}</div></div>`).join('');
+
+  const dist = d.journey_distribution || {};
+  const distLabels = {'same_day':'Same Day','1_7_days':'1-7 days','8_30_days':'8-30 days','31_90_days':'31-90 days','90_plus':'90+ days'};
+  const maxDist = Math.max(...Object.values(dist), 1);
+  document.getElementById('journey-dist').innerHTML = Object.entries(dist).map(([k,v])=>`
+    <div class="journey-bar">
+      <div class="journey-label">${distLabels[k]||k}</div>
+      <div class="journey-track"><div class="journey-fill" style="width:${v/maxDist*100}%"></div></div>
+      <div class="journey-count">${v}</div>
+    </div>`).join('');
+
+  mkChart('journey-chart', {
+    type:'bar',
+    data:{
+      labels: Object.keys(dist).map(k=>distLabels[k]||k),
+      datasets:[{label:'Customers',data:Object.values(dist),backgroundColor:colors}]
+    },
+    options:{...chartOpts(),plugins:{legend:{display:false}}}
+  });
+
+  // ── Fastest converting sources ────────────────────────────────────────────
+  const clsSpeed  = d.class_conversion_speed  || [];
+  const rawSpeed  = d.source_conversion_speed || [];
+  const clsColors = {meta:'#0084FF', tiktok:'#ff0050', organic:'#00e5c0', other:'#6b82a0'};
+  const clsNames  = {meta:'Meta Ads', tiktok:'TikTok', organic:'Organic', other:'Other'};
+  const medal     = ['🥇','🥈','🥉'];
+
+  // Channel summary cards (ranked fastest → slowest)
+  document.getElementById('source-speed-class').innerHTML = clsSpeed.map((s,i)=>{
+    const col = clsColors[s.source_class||s.source] || '#6b82a0';
+    const name = clsNames[s.source_class||s.source] || s.source;
+    return `<div class="chart-card" style="border-color:${col}33;padding:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <span style="font-size:0.8rem;font-weight:700;color:${col}">${name}</span>
+        <span style="font-size:1rem">${medal[i]||'#'+(i+1)}</span>
+      </div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:${col};line-height:1">${s.avg_days}d</div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:0.3rem">avg to convert · ${s.count} sale${s.count!==1?'s':''}</div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:0.15rem">fastest ${s.min_days}d · slowest ${s.max_days}d</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data yet</div>';
+
+  // Horizontal bars by channel
+  const maxAvg = Math.max(...clsSpeed.map(s=>s.avg_days), 1);
+  document.getElementById('source-speed-bars').innerHTML = clsSpeed.map(s=>{
+    const col  = clsColors[s.source_class||s.source] || '#6b82a0';
+    const name = clsNames[s.source_class||s.source]  || s.source;
+    const pct  = Math.max(s.avg_days / maxAvg * 100, 4);
+    return `<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem">
+      <div style="width:80px;font-size:0.72rem;color:var(--muted);text-align:right;flex-shrink:0">${name}</div>
+      <div style="flex:1;background:var(--border);border-radius:3px;height:22px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${col};border-radius:3px;display:flex;align-items:center;padding-left:8px;font-size:0.7rem;font-weight:700;white-space:nowrap">
+          ${s.avg_days}d avg
+        </div>
+      </div>
+      <div style="width:28px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);flex-shrink:0">${s.count}×</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data</div>';
+
+  // Detailed raw-source table
+  const maxRawAvg = Math.max(...rawSpeed.map(s=>s.avg_days), 1);
+  document.getElementById('source-speed-table').innerHTML = rawSpeed.map((s,i)=>{
+    const dayColor = s.avg_days <= 7 ? '#00e5c0' : s.avg_days <= 30 ? '#f5c842' : '#ff6b4a';
+    return `<tr>
+      <td style="font-size:0.78rem">${s.source}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:0.75rem">${s.count}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-weight:700;color:${dayColor}">${s.avg_days}d</span></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:#00e5c0">${s.min_days}d</span></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:#ff6b4a">${s.max_days}d</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center">No data</td></tr>';
+
+  window._journeyRows = d.matched_journeys || [];
+  filterJourney();
+
+  // All confirmed converted leads (phone-matched to shops sheet)
+  const cl = d.converted_lead_details || [];
+  document.getElementById('converted-leads-table').innerHTML = cl.map(r=>`
+    <tr>
+      <td>${r.name||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:0.75rem">${r.phone}</span></td>
+      <td><span style="color:var(--muted);font-size:0.78rem">${r.source||'—'}</span></td>
+      <td>${r.shop||'—'}</td>
+      <td>${r.product||'—'}</td>
+      <td>${r.date||'—'}</td>
+      <td><span style="font-family:'DM Mono',monospace;color:var(--accent)">${(r.revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}</span></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1rem">No converted leads found — phone numbers may not match between sheets</td></tr>';
+}
+
+// ── Lead Status ───────────────────────────────────────────────────────────
+function renderLeads(d) {
+  document.getElementById('hot-count').textContent = d.hot_leads?.count || 0;
+  document.getElementById('warm-count').textContent = d.warm_leads?.count || 0;
+  document.getElementById('cold-count').textContent = d.cold_leads?.count || 0;
+
+  const avatarColors = ['#7c5cff','#00e5c0','#ff6b4a','#f5c842','#54a0ff','#ff9ff3'];
+  function leadList(items) {
+    if(!items||!items.length) return '<div style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1rem">No leads in this category</div>';
+    return items.map((l,i)=>{
+      const initials = (l.name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+      const col = avatarColors[i % avatarColors.length];
+      return `<div class="lead-item">
+        <div class="lead-avatar" style="background:${col}20;color:${col}">${initials}</div>
+        <div class="lead-info">
+          <div class="lead-name">${l.name||'Unknown'}</div>
+          <div class="lead-meta">${l.branch||'—'} · ${l.source||'—'}</div>
+        </div>
+        <div class="lead-days">${l.days}d ago</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('hot-list').innerHTML = leadList(d.hot_leads?.items);
+  document.getElementById('warm-list').innerHTML = leadList(d.warm_leads?.items);
+  document.getElementById('cold-list').innerHTML = leadList(d.cold_leads?.items);
+}
+
+// ── ROI ───────────────────────────────────────────────────────────────────
+function renderROI(d) {
+  const roi = d.source_roi || {};
+  const srcNames = {meta:'Meta Ads',tiktok:'TikTok Ads',organic:'Organic',other:'Other'};
+  const srcIcons = {meta:'📘',tiktok:'🎵',organic:'🌱',other:'📊'};
+  const srcColors = {meta:'#0084FF',tiktok:'#ff0050',organic:'#00e5c0',other:'#6b82a0'};
+
+  document.getElementById('roi-grid').innerHTML = Object.entries(roi).map(([cls, r])=>{
+    const roiBadge = r.roi == null ? 'na' : r.roi >= 0 ? 'positive' : 'negative';
+    const roiText = r.roi == null ? 'No spend' : r.roi+'%';
+    return `<div class="roi-card">
+      <div class="roi-card-header">
+        <div class="roi-source" style="color:${srcColors[cls]}">${srcIcons[cls]} ${srcNames[cls]}</div>
+        <div class="roi-badge ${roiBadge}">ROI ${roiText}</div>
+      </div>
+      ${[
+        ['Leads Collected', fmt(r.leads)],
+        ['Conversions', fmt(r.conversions)],
+        ['Conv. Rate', r.conv_rate+'%'],
+        ['Total Spend', fmtKES(r.spend)],
+        ['Revenue Generated', fmtKES(r.revenue)],
+        ['Cost per Lead', r.cpl ? 'KES '+r.cpl : 'N/A'],
+      ].map(([l,v])=>`
+        <div class="roi-stat">
+          <span class="roi-stat-label">${l}</span>
+          <span class="roi-stat-val">${v}</span>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  // Revenue vs Spend
+  const cls_list = Object.keys(roi);
+  mkChart('roi-bar-chart', {
+    type:'bar',
+    data:{
+      labels:cls_list.map(c=>srcNames[c]||c),
+      datasets:[
+        {label:'Spend',data:cls_list.map(c=>roi[c].spend),backgroundColor:'rgba(255,107,74,0.7)'},
+        {label:'Revenue',data:cls_list.map(c=>roi[c].revenue),backgroundColor:'rgba(0,229,192,0.7)'}
+      ]
+    },
+    options:{...chartOpts(),plugins:{legend:{labels:{color:'#6b82a0'}}}}
+  });
+
+  mkChart('roi-leads-chart', {
+    type:'doughnut',
+    data:{labels:cls_list.map(c=>srcNames[c]||c),datasets:[{data:cls_list.map(c=>roi[c].leads),backgroundColor:cls_list.map(c=>srcColors[c]),borderColor:'#050a0f',borderWidth:3}]},
+    options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
+  });
+}
+
+// ── Not Converted Render ─────────────────────────────────────────────────
+function renderNotConverted(d) {
+  const total    = d.not_converted_count || 0;
+  const convRate = d.conversion_rate || 0;
+  const ncRate   = convRate > 0 ? (100 - convRate).toFixed(1) : '—';
+
+  document.getElementById('nc-kpis').innerHTML = [
+    {label:'Not Converted', val:fmt(total), sub:'Leads who haven\'t purchased yet', c1:'#ff6b4a', c2:'#c0392b'},
+    {label:'Drop-off Rate',  val:ncRate+'%', sub:'Lifetime — of all tracked leads', c1:'#6b82a0', c2:'#4a5f7a'},
+  ].map(c=>`<div class="kpi-card" style="--c1:${c.c1};--c2:${c.c2}">
+    <div class="kpi-label">${c.label}</div>
+    <div class="kpi-value">${c.val}</div>
+    <div class="kpi-sub">${c.sub}</div>
+  </div>`).join('');
+
+  // Period breakdown — computed live from the loaded records
+  const ncRows = d.not_converted_details || [];
+  const withDsPeriod = ncRows.map(r => ({_ds: daysSince(r.last_contact) ?? r.days_since}));
+  const periodTotal  = total || 1;
+
+  const periods = [
+    {label:'Lifetime',       sub:'All time',          min:0,   max:Infinity, c1:'#6b82a0', c2:'#4a5f7a'},
+    {label:'0 – 30 Days',    sub:'Recent contacts',   min:0,   max:30,       c1:'#ff4757', c2:'#c0392b'},
+    {label:'31 – 90 Days',   sub:'Last quarter',      min:31,  max:90,       c1:'#ffa502', c2:'#e67e00'},
+    {label:'91 – 180 Days',  sub:'Semi-annual',       min:91,  max:180,      c1:'#f5c842', c2:'#c9a400'},
+    {label:'181 – 365 Days', sub:'Last year',         min:181, max:365,      c1:'#7c5cff', c2:'#5a3fcc'},
+    {label:'Over 1 Year',    sub:'Long-term dormant', min:366, max:Infinity, c1:'#54a0ff', c2:'#2980b9'},
+  ];
+
+  document.getElementById('nc-period-cards').innerHTML = periods.map(p => {
+    const count = p.label === 'Lifetime'
+      ? total
+      : withDsPeriod.filter(r => r._ds >= p.min && r._ds <= p.max).length;
+    const pct = ((count / periodTotal) * 100).toFixed(1);
+    return `<div class="kpi-card" style="--c1:${p.c1};--c2:${p.c2}">
+      <div class="kpi-label">${p.label}</div>
+      <div class="kpi-value">${fmt(count)}</div>
+      <div class="kpi-sub">${pct}% of not-converted · ${p.sub}</div>
+    </div>`;
+  }).join('');
+
+  // Channel breakdown cards
+  const byClass   = d.not_converted_by_class || {};
+  const clsColors = {meta:'#0084FF', tiktok:'#ff0050', organic:'#00e5c0', other:'#6b82a0'};
+  const clsNames  = {meta:'Meta Ads', tiktok:'TikTok', organic:'Organic', other:'Other'};
+  const totalNc   = Object.values(byClass).reduce((a,b)=>a+b, 0) || 1;
+  document.getElementById('nc-class-cards').innerHTML = Object.entries(byClass)
+    .sort((a,b)=>b[1]-a[1]).map(([cls, cnt]) => {
+      const pct = Math.round(cnt / totalNc * 100);
+      const col = clsColors[cls] || '#6b82a0';
+      return `<div class="chart-card" style="border-color:${col}33;padding:1rem">
+        <div style="font-size:0.75rem;font-weight:700;color:${col};margin-bottom:0.35rem">${clsNames[cls]||cls}</div>
+        <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:${col};line-height:1">${fmt(cnt)}</div>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:0.25rem">${pct}% of unconverted</div>
+        <div style="margin-top:0.45rem;background:var(--border);border-radius:3px;height:4px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${col};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--muted)">No data</div>';
+
+  // Branch bars
+  const byBranch = d.not_converted_by_branch || {};
+  const maxB = Math.max(...Object.values(byBranch), 1);
+  document.getElementById('nc-branch-bars').innerHTML = Object.entries(byBranch)
+    .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([b, cnt]) => `
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem">
+      <div style="width:90px;font-size:0.72rem;color:var(--muted);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${b}">${b}</div>
+      <div style="flex:1;background:var(--border);border-radius:3px;height:20px;overflow:hidden">
+        <div style="width:${cnt/maxB*100}%;height:100%;background:linear-gradient(90deg,#ff6b4a,#c0392b);border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:0.7rem;font-weight:600;white-space:nowrap">${cnt}</div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data</div>';
+
+  // Source bars (top 10 raw sources)
+  const bySrc = d.not_converted_by_source || {};
+  const maxS  = Math.max(...Object.values(bySrc), 1);
+  document.getElementById('nc-source-bars').innerHTML = Object.entries(bySrc)
+    .sort((a,b)=>b[1]-a[1]).slice(0,10).map(([src, cnt]) => `
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem">
+      <div style="width:90px;font-size:0.72rem;color:var(--muted);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${src}">${src||'unknown'}</div>
+      <div style="flex:1;background:var(--border);border-radius:3px;height:20px;overflow:hidden">
+        <div style="width:${cnt/maxS*100}%;height:100%;background:linear-gradient(90deg,#7c5cff,#5a3fcc);border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:0.7rem;font-weight:600;white-space:nowrap">${cnt}</div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data</div>';
+
+  window._notConvRows = d.not_converted_details || [];
+  filterNotConverted();
+}
+
+// ── Auto-refresh every 5 min ──────────────────────────────────────────────
+setInterval(()=>fetchData(true).then(data=>{D=data;render(data);tab(currentTab);}).catch(()=>{}), 300000);
+
+load();
+</script>
+</body>
+</html>
