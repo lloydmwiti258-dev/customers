@@ -4,15 +4,15 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Customer Journey Analytics</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@700&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#050a0f;
-  --surface:#0d1520;
-  --surface2:#121d2e;
-  --border:#1e2d42;
+  --bg:#0d1b2a;
+  --surface:#112240;
+  --surface2:#0a1628;
+  --border:#1e3a5f;
   --accent:#00e5c0;
   --accent2:#ff6b4a;
   --accent3:#7c5cff;
@@ -29,15 +29,15 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 /* Animated background */
 body::before{
   content:'';position:fixed;inset:0;
-  background:radial-gradient(ellipse at 10% 20%,rgba(0,229,192,0.04) 0%,transparent 50%),
-              radial-gradient(ellipse at 90% 80%,rgba(124,92,255,0.05) 0%,transparent 50%);
+  background:radial-gradient(ellipse at 10% 20%,rgba(0,201,167,0.08) 0%,transparent 50%),
+              radial-gradient(ellipse at 90% 80%,rgba(124,92,255,0.07) 0%,transparent 50%);
   pointer-events:none;z-index:0;
 }
 
 /* Header */
 .header{
   position:sticky;top:0;z-index:100;
-  background:rgba(5,10,15,0.85);backdrop-filter:blur(16px);
+  background:rgba(13,27,42,0.92);backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border);
   padding:0 2rem;display:flex;align-items:center;height:64px;
 }
@@ -51,13 +51,13 @@ body::before{
 }
 .logo-sub{
   font-family:'Outfit',sans-serif;font-weight:700;font-size:0.85rem;
-  text-transform:uppercase;letter-spacing:0.18em;color:#94a3b8;
+  text-transform:uppercase;letter-spacing:0.18em;color:#6b82a0;
   white-space:nowrap;
 }
 .header-right{display:flex;align-items:center;gap:1rem;flex:1;justify-content:flex-end}
 .company-badge{
   width:58px;height:58px;border-radius:50%;flex-shrink:0;
-  background:linear-gradient(135deg,#1e40af 0%,#3b82f6 100%);
+  background:linear-gradient(135deg,#1e40af 0%,#54a0ff 100%);
   box-shadow:0 0 0 2px rgba(59,130,246,0.35),0 4px 18px rgba(59,130,246,0.3);
   display:flex;align-items:center;justify-content:center;position:relative;
 }
@@ -122,13 +122,13 @@ body::before{
 .kpi-card::before{
   content:'';position:absolute;inset:0;
   background:linear-gradient(135deg,var(--c1,var(--accent)) 0%,transparent 60%);
-  opacity:0.04;
+  opacity:0.07;
 }
-.kpi-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:0.5rem}
-.kpi-value{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1;
+.kpi-label{font-family:'Outfit',sans-serif;font-weight:500;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:0.5rem}
+.kpi-value{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:900;line-height:1;
   background:linear-gradient(135deg,var(--c1,var(--accent)),var(--c2,var(--accent3)));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.kpi-sub{font-size:0.72rem;color:var(--muted);margin-top:0.4rem}
+.kpi-sub{font-family:'Outfit',sans-serif;font-weight:400;font-size:0.72rem;color:var(--muted);margin-top:0.4rem}
 
 /* Section headers */
 .section-header{margin-bottom:1.25rem}
@@ -158,7 +158,7 @@ table{width:100%;border-collapse:collapse;font-size:0.82rem}
 thead tr{background:var(--surface2);border-bottom:1px solid var(--border)}
 th{padding:10px 14px;text-align:left;font-weight:700;font-size:0.7rem;
   text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);white-space:nowrap}
-tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:rgba(255,255,255,0.03)}
 td{padding:10px 14px;color:var(--text)}
@@ -172,7 +172,7 @@ td{padding:10px 14px;color:var(--text)}
 .status-card.warm{background:rgba(255,165,2,0.08);border-color:rgba(255,165,2,0.3)}
 .status-card.cold{background:rgba(84,160,255,0.08);border-color:rgba(84,160,255,0.3)}
 .status-icon{font-size:1.8rem;margin-bottom:0.5rem}
-.status-count{font-family:'Syne',sans-serif;font-size:2.5rem;font-weight:800}
+.status-count{font-family:'Outfit',sans-serif;font-size:2.5rem;font-weight:900}
 .status-card.hot .status-count{color:var(--hot)}
 .status-card.warm .status-count{color:var(--warm)}
 .status-card.cold .status-count{color:var(--cold)}
@@ -189,7 +189,7 @@ td{padding:10px 14px;color:var(--text)}
 .roi-badge.negative{background:rgba(255,71,87,0.15);color:var(--hot)}
 .roi-badge.na{background:rgba(107,130,160,0.15);color:var(--muted)}
 .roi-stat{display:flex;justify-content:space-between;align-items:center;
-  padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+  padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.07)}
 .roi-stat:last-child{border-bottom:none}
 .roi-stat-label{font-size:0.75rem;color:var(--muted)}
 .roi-stat-val{font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:500}
@@ -219,7 +219,7 @@ td{padding:10px 14px;color:var(--text)}
 
 /* Scrollable list */
 .lead-list{max-height:360px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-.lead-item{display:flex;align-items:center;gap:0.75rem;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.lead-item{display:flex;align-items:center;gap:0.75rem;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)}
 .lead-item:last-child{border-bottom:none}
 .lead-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-size:0.75rem;font-weight:700;flex-shrink:0}
@@ -274,6 +274,50 @@ td{padding:10px 14px;color:var(--text)}
 }
 .range-btn:hover{border-color:var(--accent);color:var(--text)}
 .range-btn.active{background:var(--accent);border-color:var(--accent);color:#000}
+/* ── Customer Lookup ──────────────────────────────────────────────────────── */
+.lookup-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem}
+.lookup-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;letter-spacing:0.04em;
+  margin-bottom:1rem;color:var(--text);display:flex;align-items:center;gap:0.5rem}
+.lookup-input-row{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap}
+.lookup-input{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.88rem;outline:none;
+  transition:border-color 0.2s}
+.lookup-input:focus{border-color:var(--accent)}
+.lookup-input::placeholder{color:var(--muted)}
+.lookup-btn{background:linear-gradient(135deg,var(--accent),var(--accent3));border:none;border-radius:8px;
+  padding:10px 24px;color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;
+  letter-spacing:0.06em;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
+.lookup-btn:hover{opacity:0.85}
+.lookup-btn:disabled{opacity:0.4;cursor:not-allowed}
+.lookup-result{margin-top:1.4rem;display:none}
+.lookup-profile{display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap}
+.lookup-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));
+  display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;
+  font-weight:800;font-size:1.2rem;color:#000;flex-shrink:0}
+.lookup-name{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:var(--text)}
+.lookup-phone{font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--muted);margin-top:2px}
+.lookup-badge{padding:3px 10px;border-radius:20px;font-size:0.65rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.08em;margin-left:auto}
+.lookup-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.75rem;margin-bottom:1.4rem}
+.lookup-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem}
+.lookup-stat-label{font-size:0.64rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:0.3rem}
+.lookup-stat-val{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.25rem;color:var(--text);line-height:1}
+.lookup-stat-sub{font-size:0.66rem;color:var(--muted);margin-top:3px}
+.lookup-section-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);
+  font-weight:700;margin:1.2rem 0 0.6rem}
+.lookup-empty{color:var(--muted);font-size:0.82rem;padding:0.75rem 0}
+.lookup-not-found{display:flex;align-items:center;gap:0.5rem;color:var(--muted);font-size:0.88rem;
+  padding:0.5rem 0;margin-top:1rem}
+/* ── Top Customers by Branch ──────────────────────────────────────────────── */
+.branch-cust-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem}
+.branch-cust-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.branch-cust-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;letter-spacing:0.04em;color:var(--text)}
+.branch-select{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:7px 14px;color:var(--text);font-family:'Syne',sans-serif;font-weight:600;
+  font-size:0.78rem;outline:none;cursor:pointer;min-width:160px}
+.branch-select:focus{border-color:var(--accent)}
+.branch-rank-badge{display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;font-size:0.65rem;font-weight:800;font-family:'Syne',sans-serif;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -321,6 +365,32 @@ td{padding:10px 14px;color:var(--text)}
   <!-- OVERVIEW TAB -->
   <div id="tab-overview" class="tab-content active" style="display:none">
     <div class="kpi-grid" id="kpi-grid"></div>
+
+    <!-- Customer History Lookup -->
+    <div class="lookup-wrap">
+      <div class="lookup-title">&#x1F50D; Customer History Lookup</div>
+      <div class="lookup-input-row">
+        <input id="lookup-phone" class="lookup-input" type="tel"
+               placeholder="Enter phone number e.g. 0712345678 or +254712345678"
+               onkeydown="if(event.key==='Enter')lookupCustomer()"/>
+        <button class="lookup-btn" id="lookup-btn" onclick="lookupCustomer()">Search</button>
+      </div>
+      <div id="lookup-result" class="lookup-result">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Top 10 Customers by Branch -->
+    <div class="branch-cust-wrap">
+      <div class="branch-cust-header">
+        <div class="branch-cust-title">&#x1F3C6; Top 10 Customers by Branch</div>
+        <select id="branch-cust-select" class="branch-select" onchange="renderBranchCustomers()">
+          <option value="">— Select branch —</option>
+        </select>
+      </div>
+      <div id="branch-cust-table"></div>
+    </div>
+
     <div class="grid-2">
       <div class="chart-card">
         <h3>Monthly Conversions</h3>
@@ -490,9 +560,9 @@ td{padding:10px 14px;color:var(--text)}
     <div class="chart-card">
       <h3>All Not-Converted Leads</h3>
       <div class="search-bar" style="margin-top:1rem">
-        <input id="nc-phone"    class="search-input" style="flex:1.5" placeholder="Search phone…"  oninput="filterNotConverted()"/>
-        <input id="nc-source-q" class="search-input" style="flex:1.5" placeholder="Search source…" oninput="filterNotConverted()"/>
-        <input id="nc-branch"   class="search-input" style="flex:1.5" placeholder="Search branch…" oninput="filterNotConverted()"/>
+        <input id="nc-phone"    class="search-input" style="flex:1.5" placeholder="Search phone…"  oninput="ncFilterDebounced()"/>
+        <input id="nc-source-q" class="search-input" style="flex:1.5" placeholder="Search source…" oninput="ncFilterDebounced()"/>
+        <input id="nc-branch"   class="search-input" style="flex:1.5" placeholder="Search branch…" oninput="ncFilterDebounced()"/>
         <button class="search-clear" onclick="clearNotConverted()">Clear</button>
         <button class="search-clear" onclick="exportNotConverted()" style="border-color:var(--accent4);color:var(--accent4)">&#8595; Excel</button>
         <span class="search-count" id="nc-count"></span>
@@ -512,6 +582,7 @@ td{padding:10px 14px;color:var(--text)}
           <tbody id="nc-table"></tbody>
         </table>
       </div>
+      <div id="nc-pagination" style="display:flex;align-items:center;justify-content:center;gap:1rem;padding:0.75rem 0;font-size:0.78rem;color:var(--muted)"></div>
     </div>
   </div>
 
@@ -645,7 +716,7 @@ function fmtKES(n) { return 'KES ' + (n||0).toLocaleString(undefined,{maximumFra
 
 function renderTab(name, d) {
   switch(name) {
-    case 'overview':     renderKPIs(d); renderCharts(d); break;
+    case 'overview':     renderKPIs(d); renderCharts(d); initBranchCustomers(d); break;
     case 'sources':      renderSources(d); break;
     case 'branches':     renderBranches(d); break;
     case 'journey':      renderJourney(d); break;
@@ -662,6 +733,220 @@ function render(d) {
 }
 
 // ── KPI Cards ─────────────────────────────────────────────────────────────
+// ── Customer Lookup ───────────────────────────────────────────────────────
+async function lookupCustomer() {
+  const input = document.getElementById('lookup-phone');
+  const btn   = document.getElementById('lookup-btn');
+  const resEl = document.getElementById('lookup-result');
+  const phone = (input?.value || '').trim();
+  if (!phone) { input?.focus(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
+  resEl.style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/customer?phone=' + encodeURIComponent(phone));
+    const json = await res.json();
+
+    if (!json.success) {
+      resEl.innerHTML = `<div class="lookup-not-found">⚠ ${json.error}</div>`;
+      resEl.style.display = 'block';
+      return;
+    }
+
+    if (!json.found) {
+      resEl.innerHTML = `<div class="lookup-not-found">&#x2715; No records found for <strong>${phone}</strong>. Try a different format.</div>`;
+      resEl.style.display = 'block';
+      return;
+    }
+
+    const s    = json.summary;
+    const name = json.name || 'Unknown';
+    const initials = name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
+    const isConv   = s.total_purchases > 0;
+    const badgeCol = isConv ? '#00e5c0' : '#6b82a0';
+    const badgeTxt = isConv ? 'Converted' : 'Lead Only';
+
+    // ── Profile header
+    let html = `
+      <div class="lookup-profile">
+        <div class="lookup-avatar">${initials}</div>
+        <div>
+          <div class="lookup-name">${name}</div>
+          <div class="lookup-phone">${json.phone}</div>
+        </div>
+        <span class="lookup-badge" style="background:${badgeCol}22;color:${badgeCol};border:1px solid ${badgeCol}55">${badgeTxt}</span>
+      </div>`;
+
+    // ── Summary stats
+    html += `<div class="lookup-stat-grid">
+      <div class="lookup-stat">
+        <div class="lookup-stat-label">Lifetime Value</div>
+        <div class="lookup-stat-val">KES ${fmtN(s.lifetime_value)}</div>
+        <div class="lookup-stat-sub">Total spend across all purchases</div>
+      </div>
+      <div class="lookup-stat">
+        <div class="lookup-stat-label">Avg Spend / Purchase</div>
+        <div class="lookup-stat-val">KES ${fmtN(s.avg_spend)}</div>
+        <div class="lookup-stat-sub">${s.total_purchases} purchase${s.total_purchases!==1?'s':''} total</div>
+      </div>
+      <div class="lookup-stat">
+        <div class="lookup-stat-label">Total Purchases</div>
+        <div class="lookup-stat-val">${s.total_purchases}</div>
+        <div class="lookup-stat-sub">${s.first_purchase ? 'First: ' + s.first_purchase : 'No purchase yet'}</div>
+      </div>
+      <div class="lookup-stat">
+        <div class="lookup-stat-label">Days as Customer</div>
+        <div class="lookup-stat-val">${s.days_as_customer}</div>
+        <div class="lookup-stat-sub">Since first interaction ${s.first_interaction}</div>
+      </div>
+      <div class="lookup-stat">
+        <div class="lookup-stat-label">Total Interactions</div>
+        <div class="lookup-stat-val">${s.total_interactions}</div>
+        <div class="lookup-stat-sub">Across all channels</div>
+      </div>
+    </div>`;
+
+    // ── Purchase history
+    html += `<div class="lookup-section-title">&#x1F6D2; Purchase History</div>`;
+    if (json.purchases.length === 0) {
+      html += `<div class="lookup-empty">No purchases recorded for this number.</div>`;
+    } else {
+      html += `<div class="table-wrap" style="margin-bottom:0"><table>
+        <thead><tr><th>#</th><th>Date</th><th>Product</th><th>Amount (KES)</th><th>Location</th></tr></thead>
+        <tbody>${json.purchases.map((p, i) => `<tr>
+          <td style="color:var(--muted);font-size:0.72rem">${i+1}</td>
+          <td>${p.date||'—'}</td>
+          <td style="color:var(--text)">${p.product||'—'}</td>
+          <td><span style="font-family:'DM Mono',monospace;font-weight:700;color:#f5c842">${fmtN(p.amount)}</span></td>
+          <td style="color:var(--muted);font-size:0.78rem">${p.location||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+    }
+
+    // ── Interaction history
+    html += `<div class="lookup-section-title">&#x1F4AC; Interaction History — Lead to Conversion Journey</div>`;
+    if (json.interactions.length === 0) {
+      html += `<div class="lookup-empty">No interaction records found.</div>`;
+    } else {
+      const chColors = {meta:'#0084FF', tiktok:'#ff0050', organic:'#00e5c0', other:'#6b82a0'};
+      html += `<div class="table-wrap" style="margin-bottom:0"><table>
+        <thead><tr><th>#</th><th>Date</th><th>Source</th><th>Channel</th><th>Activity</th><th>Branch</th></tr></thead>
+        <tbody>${json.interactions.map((it, i) => {
+          const cc = chColors[it.channel] || '#6b82a0';
+          return `<tr>
+            <td style="color:var(--muted);font-size:0.72rem">${i+1}</td>
+            <td>${it.date||'—'}</td>
+            <td style="color:var(--muted);font-size:0.78rem">${it.source||'—'}</td>
+            <td><span style="background:${cc}22;color:${cc};border:1px solid ${cc}44;padding:2px 8px;border-radius:4px;font-size:0.65rem;font-weight:700;text-transform:uppercase">${it.channel||'—'}</span></td>
+            <td style="font-size:0.78rem">${it.activity||'—'}</td>
+            <td style="color:var(--muted);font-size:0.78rem">${it.branch||'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    resEl.innerHTML = html;
+    resEl.style.display = 'block';
+  } catch(e) {
+    resEl.innerHTML = `<div class="lookup-not-found">⚠ Error: ${e.message}</div>`;
+    resEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+}
+
+function fmtN(n) {
+  if (!n && n !== 0) return '—';
+  return Number(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+}
+
+// ── Top 10 Customers by Branch ────────────────────────────────────────────
+function initBranchCustomers(d) {
+  const data = d.top_customers_by_branch || {};
+  const sel  = document.getElementById('branch-cust-select');
+  if (!sel) return;
+  const branches = Object.keys(data).sort();
+  sel.innerHTML = '<option value="">— Select branch —</option>' +
+    branches.map(b => `<option value="${b}">${b} (${(data[b]||[]).length})</option>`).join('');
+  // Auto-select branch with highest single customer spend
+  if (branches.length) {
+    const best = branches.reduce((a, b) =>
+      ((data[b][0]||{}).total_spend||0) > ((data[a][0]||{}).total_spend||0) ? b : a
+    );
+    sel.value = best;
+    renderBranchCustomers();
+  }
+}
+
+function renderBranchCustomers() {
+  const sel    = document.getElementById('branch-cust-select');
+  const branch = sel?.value;
+  const tbl    = document.getElementById('branch-cust-table');
+  if (!tbl) return;
+
+  if (!branch) {
+    tbl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0">Select a branch to view top customers.</div>';
+    return;
+  }
+
+  const data = (D && D.top_customers_by_branch && D.top_customers_by_branch[branch]) || [];
+  if (!data.length) {
+    tbl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem 0">No customer data for this branch.</div>';
+    return;
+  }
+
+  const rankColors = ['#f5c842','#94a3b8','#cd7f32','#7c5cff','#7c5cff','#7c5cff','#7c5cff','#7c5cff','#7c5cff','#7c5cff'];
+  const maxSpend   = data[0].total_spend || 1;
+
+  tbl.innerHTML = `<div class="table-wrap" style="margin:0"><table>
+    <thead><tr>
+      <th style="width:30px">#</th>
+      <th>Contact</th>
+      <th style="text-align:center">Interactions</th>
+      <th style="text-align:center">Purchases</th>
+      <th>Total Spend (KSH)</th>
+      <th>First Seen</th>
+      <th>Last Seen</th>
+    </tr></thead>
+    <tbody>${data.map((c, i) => {
+      const rank = i + 1;
+      const rc   = rankColors[i] || '#6b82a0';
+      const bar  = Math.round(c.total_spend / maxSpend * 100);
+      const display = c.name
+        ? `<div style="font-weight:600;font-size:0.85rem">${c.name}</div>
+           <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);margin-top:1px">${c.phone}</div>`
+        : `<div style="font-family:'DM Mono',monospace;font-size:0.78rem">${c.phone}</div>`;
+      return `<tr>
+        <td>
+          <div class="branch-rank-badge" style="background:${rc}22;color:${rc};border:1px solid ${rc}44">${rank}</div>
+        </td>
+        <td>${display}</td>
+        <td style="text-align:center">
+          <span style="font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--accent)">${c.interactions}</span>
+        </td>
+        <td style="text-align:center">
+          <span style="font-family:'DM Mono',monospace;font-size:0.82rem;color:#f5c842">${c.purchases}</span>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:60px">
+              <div style="width:${bar}%;height:100%;background:linear-gradient(90deg,${rc},${rc}99);border-radius:3px"></div>
+            </div>
+            <span style="font-family:'DM Mono',monospace;font-weight:700;font-size:0.82rem;color:${rc};white-space:nowrap">
+              ${fmtN(c.total_spend)}
+            </span>
+          </div>
+        </td>
+        <td style="font-size:0.75rem;color:var(--muted)">${c.first_seen||'—'}</td>
+        <td style="font-size:0.75rem;color:var(--muted)">${c.last_seen||'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
 function renderKPIs(d) {
   const cards = [
     {label:'Total Leads', val:fmt(d.total_leads), sub:'Unique across Leads + WhatsApp', c1:'#00e5c0', c2:'#00b8a0'},
@@ -699,8 +984,8 @@ function renderCharts(d) {
     data:{
       labels: mc.map(x=>x.month),
       datasets:[
-        {label:'Conversions',data:mc.map(x=>x.conversions),borderColor:'#00e5c0',backgroundColor:'rgba(0,229,192,0.1)',fill:true,tension:0.4},
-        {label:'Revenue (÷1000)',data:mc.map(x=>Math.round(x.revenue/1000)),borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.1)',fill:true,tension:0.4}
+        {label:'Conversions',data:mc.map(x=>x.conversions),borderColor:'#00e5c0',backgroundColor:'rgba(0,229,192,0.08)',fill:true,tension:0.4},
+        {label:'Revenue (÷1000)',data:mc.map(x=>Math.round(x.revenue/1000)),borderColor:'#7c5cff',backgroundColor:'rgba(124,92,255,0.08)',fill:true,tension:0.4}
       ]
     },
     options:chartOpts()
@@ -710,7 +995,7 @@ function renderCharts(d) {
   const rc = d.region_conversions || {};
   mkChart('region-chart', {
     type:'doughnut',
-    data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc),backgroundColor:colors,borderColor:'#050a0f',borderWidth:3}]},
+    data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc),backgroundColor:colors,borderColor:'#0d1b2a',borderWidth:3}]},
     options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
   });
 
@@ -718,7 +1003,7 @@ function renderCharts(d) {
   const gc = d.gender_split || {};
   mkChart('gender-chart', {
     type:'pie',
-    data:{labels:Object.keys(gc),datasets:[{data:Object.values(gc),backgroundColor:['#7c5cff','#ff6b4a','#54a0ff'],borderColor:'#050a0f',borderWidth:3}]},
+    data:{labels:Object.keys(gc),datasets:[{data:Object.values(gc),backgroundColor:['#7c5cff','#ff6b4a','#f5c842'],borderColor:'#0d1b2a',borderWidth:3}]},
     options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
   });
 
@@ -737,8 +1022,8 @@ function chartOpts() {
   return {
     responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{color:'#6b82a0',font:{size:11}}}},
-    scales:{x:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
-            y:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}
+    scales:{x:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.06)'}},
+            y:{ticks:{color:'#6b82a0',font:{size:10}},grid:{color:'rgba(255,255,255,0.06)'}}}
   };
 }
 
@@ -756,7 +1041,7 @@ function renderSources(d) {
   const clsColors = {meta:'#0084FF',tiktok:'#ff0050',organic:'#00e5c0',other:'#6b82a0'};
   mkChart('src-class-chart', {
     type:'doughnut',
-    data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(k=>clsColors[k]||'#6b82a0'),borderColor:'#050a0f',borderWidth:3}]},
+    data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(k=>clsColors[k]||'#6b82a0'),borderColor:'#0d1b2a',borderWidth:3}]},
     options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
   });
 
@@ -764,7 +1049,7 @@ function renderSources(d) {
   const top10 = sorted.slice(0,12);
   mkChart('src-bar-chart', {
     type:'bar',
-    data:{labels:top10.map(x=>x[0]||'unknown'),datasets:[{label:'Leads',data:top10.map(x=>x[1]),backgroundColor:'#7c5cff'}]},
+    data:{labels:top10.map(x=>x[0]||'unknown'),datasets:[{label:'Leads',data:top10.map(x=>x[1]),backgroundColor:'#00e5c0'}]},
     options:{...chartOpts(),indexAxis:'y',plugins:{legend:{display:false}}}
   });
 
@@ -788,7 +1073,7 @@ function renderBranches(d) {
     <div class="branch-row">
       <div class="branch-name" title="${b.branch}">${b.branch}</div>
       <div class="branch-track">
-        <div class="branch-conv" style="width:${b.leads/maxLeads*100}%;background:linear-gradient(90deg,#7c5cff,#5a3fcc)">${b.leads}</div>
+        <div class="branch-conv" style="width:${b.leads/maxLeads*100}%;background:linear-gradient(90deg,#00e5c0,#00b8a0)">${b.leads}</div>
       </div>
     </div>`).join('');
 
@@ -797,14 +1082,14 @@ function renderBranches(d) {
     <div class="branch-row">
       <div class="branch-name" title="${b.branch}">${b.branch}</div>
       <div class="branch-track">
-        <div class="branch-conv" style="width:${b.conversions/maxConv*100}%;background:linear-gradient(90deg,#00e5c0,#00b8a0)">${b.conversions}</div>
+        <div class="branch-conv" style="width:${b.conversions/maxConv*100}%;background:linear-gradient(90deg,#f5c842,#c9a400)">${b.conversions}</div>
       </div>
       <div class="branch-meta">${b.rate}%</div>
     </div>`).join('');
 
   // ── Full analytics table ──────────────────────────────────────────────────
   document.getElementById('branch-table').innerHTML = sortedByConv.map(b=>{
-    const rateColor = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#ff6b4a';
+    const rateColor = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#6b82a0';
     const waColor   = b.wa_engagements > 0 ? 'var(--accent)' : 'var(--muted)';
     return `<tr>
       <td><strong>${b.branch}</strong></td>
@@ -825,7 +1110,7 @@ function renderBranches(d) {
     const waFollowPct  = total > 0 ? Math.round((b.wa_engagements||0) / total * 100) : 0;
     const convPct      = b.rate || 0;
     const notConverted = b.not_converted || 0;
-    const rateColor    = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#ff6b4a';
+    const rateColor    = b.rate > 20 ? '#00e5c0' : b.rate > 5 ? '#f5c842' : '#6b82a0';
 
     const actTags = Object.entries(b.activities||{}).map(([act,cnt])=>
       `<span class="tag" style="background:rgba(0,229,192,0.08);color:var(--accent);border:1px solid rgba(0,229,192,0.2);margin:2px 2px 2px 0">${act} <strong>${cnt}</strong></span>`
@@ -855,9 +1140,9 @@ function renderBranches(d) {
         </div>
       </div>
 
-      ${funnelRow('Leads Shared', b.leads, '', 'linear-gradient(90deg,#7c5cff,#5a3fcc)', true)}
+      ${funnelRow('Leads Shared', b.leads, '', 'linear-gradient(90deg,#00e5c0,#00b8a0)', true)}
       ${funnelRow('WA Follow-ups', b.wa_engagements||0, waFollowPct, 'linear-gradient(90deg,#25D366,#128C7E)', false)}
-      ${funnelRow('Converted', b.conversions||0, convPct, 'linear-gradient(90deg,#00e5c0,#00b8a0)', true)}
+      ${funnelRow('Converted', b.conversions||0, convPct, 'linear-gradient(90deg,#f5c842,#c9a400)', true)}
       ${funnelRow('Not Converted', notConverted, '', 'rgba(107,130,160,0.3)', false)}
 
       ${actTags ? `
@@ -913,7 +1198,7 @@ function filterJourney() {
 
   document.getElementById('journey-table').innerHTML = filtered.map(j => {
     const dc = j.days_to_convert;
-    const dColor = dc <= 7 ? '#00e5c0' : dc <= 30 ? '#f5c842' : '#ff6b4a';
+    const dColor = dc <= 7 ? '#00e5c0' : dc <= 30 ? '#f5c842' : '#6b82a0';
     return `<tr>
       <td>${j.name||'—'}</td>
       <td><span style="font-family:'DM Mono',monospace;font-size:0.75rem">${j.phone}</span></td>
@@ -970,17 +1255,22 @@ function setNcRange(min, max, btn) {
   filterNotConverted();
 }
 
+const NC_PAGE_SIZE = 200;
+let _ncFilterTimer = null;
+function ncFilterDebounced() {
+  clearTimeout(_ncFilterTimer);
+  _ncFilterTimer = setTimeout(filterNotConverted, 260);
+}
+
 function filterNotConverted() {
   const qPhone  = (document.getElementById('nc-phone')?.value    || '').toLowerCase().trim();
   const qSource = (document.getElementById('nc-source-q')?.value || '').toLowerCase().trim();
   const qBranch = (document.getElementById('nc-branch')?.value   || '').toLowerCase().trim();
   const {min: rMin, max: rMax} = window._ncRange;
+  // _ds is pre-computed on load — no map/spread needed here
   const all = window._notConvRows || [];
 
-  // Compute live days since last contact once per row, shared by filter + render
-  const withDs = all.map(r => ({...r, _ds: daysSince(r.last_contact) ?? r.days_since}));
-
-  const filtered = withDs.filter(r => {
+  const filtered = all.filter(r => {
     if (qPhone  && !r.phone.toLowerCase().includes(qPhone))         return false;
     if (qSource && !(r.source||'').toLowerCase().includes(qSource)) return false;
     if (qBranch && !(r.branch||'').toLowerCase().includes(qBranch)) return false;
@@ -990,11 +1280,21 @@ function filterNotConverted() {
   });
 
   window._filteredNcRows = filtered;
+  window._ncCurrentPage  = 0;
+  renderNcTablePage();
+}
+
+function renderNcTablePage() {
+  const filtered = window._filteredNcRows || [];
+  const page     = window._ncCurrentPage  || 0;
+  const total    = window._ncTotal        || (window._notConvRows||[]).length;
+  const start    = page * NC_PAGE_SIZE;
+  const slice    = filtered.slice(start, start + NC_PAGE_SIZE);
 
   const countEl = document.getElementById('nc-count');
-  if (countEl) countEl.textContent = filtered.length + ' of ' + all.length + ' leads';
+  if (countEl) countEl.textContent = filtered.length + ' of ' + total + ' leads';
 
-  document.getElementById('nc-table').innerHTML = filtered.map(r => {
+  document.getElementById('nc-table').innerHTML = slice.map(r => {
     const ds = r._ds;
     const sc = ds <= 30 ? {l:'Hot',c:'#ff4757'} :
                ds <= 90 ? {l:'Warm',c:'#ffa502'} : {l:'Cold',c:'#54a0ff'};
@@ -1008,6 +1308,24 @@ function filterNotConverted() {
       <td><span style="background:${sc.c}22;color:${sc.c};border:1px solid ${sc.c}44;padding:2px 8px;border-radius:4px;font-size:0.68rem;font-weight:700">${sc.l}</span></td>
     </tr>`;
   }).join('') || '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:1rem">No matching records</td></tr>';
+
+  // Pagination bar
+  const totalPages = Math.ceil(filtered.length / NC_PAGE_SIZE);
+  const pgEl = document.getElementById('nc-pagination');
+  if (pgEl) {
+    if (totalPages <= 1) { pgEl.innerHTML = ''; return; }
+    const btnStyle = 'background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 14px;color:var(--text);font-size:0.75rem;cursor:pointer';
+    pgEl.innerHTML =
+      `<button style="${btnStyle}" ${page===0?'disabled':''} onclick="ncGotoPage(${page-1})">← Prev</button>` +
+      `<span style="font-size:0.78rem">Page ${page+1} of ${totalPages} &nbsp;·&nbsp; rows ${start+1}–${Math.min(start+NC_PAGE_SIZE, filtered.length)} of ${filtered.length}</span>` +
+      `<button style="${btnStyle}" ${start+NC_PAGE_SIZE>=filtered.length?'disabled':''} onclick="ncGotoPage(${page+1})">Next →</button>`;
+  }
+}
+
+function ncGotoPage(p) {
+  window._ncCurrentPage = p;
+  renderNcTablePage();
+  document.getElementById('nc-table')?.closest('.chart-card')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function clearNotConverted() {
@@ -1041,10 +1359,10 @@ function exportNotConverted() {
 // ── Journey ───────────────────────────────────────────────────────────────
 function renderJourney(d) {
   document.getElementById('journey-kpis').innerHTML = [
-    {label:'Avg Days to Convert', val: d.avg_journey_days != null ? d.avg_journey_days+' days' : 'N/A', c1:'#00e5c0',c2:'#7c5cff'},
-    {label:'Fastest Conversion', val: d.min_journey_days != null ? d.min_journey_days+' days' : 'N/A', c1:'#f5c842',c2:'#ff6b4a'},
-    {label:'Slowest Conversion', val: d.max_journey_days != null ? d.max_journey_days+' days' : 'N/A', c1:'#ff6b4a',c2:'#c0392b'},
-    {label:'Leads Converted', val: fmt(d.leads_converted||0), c1:'#7c5cff',c2:'#54a0ff'},
+    {label:'Avg Days to Convert', val: d.avg_journey_days != null ? d.avg_journey_days+' days' : 'N/A', c1:'#ff6b4a',c2:'#f5c842'},
+    {label:'Fastest Conversion', val: d.min_journey_days != null ? d.min_journey_days+' days' : 'N/A', c1:'#00e5c0',c2:'#7c5cff'},
+    {label:'Slowest Conversion', val: d.max_journey_days != null ? d.max_journey_days+' days' : 'N/A', c1:'#7c5cff',c2:'#ff6b4a'},
+    {label:'Leads Converted', val: fmt(d.leads_converted||0), c1:'#f5c842',c2:'#00e5c0'},
   ].map(c=>`<div class="kpi-card" style="--c1:${c.c1};--c2:${c.c2}"><div class="kpi-label">${c.label}</div><div class="kpi-value">${c.val}</div></div>`).join('');
 
   const dist = d.journey_distribution || {};
@@ -1108,7 +1426,7 @@ function renderJourney(d) {
   // Detailed raw-source table
   const maxRawAvg = Math.max(...rawSpeed.map(s=>s.avg_days), 1);
   document.getElementById('source-speed-table').innerHTML = rawSpeed.map((s,i)=>{
-    const dayColor = s.avg_days <= 7 ? '#00e5c0' : s.avg_days <= 30 ? '#f5c842' : '#ff6b4a';
+    const dayColor = s.avg_days <= 7 ? '#00e5c0' : s.avg_days <= 30 ? '#f5c842' : '#6b82a0';
     return `<tr>
       <td style="font-size:0.78rem">${s.source}</td>
       <td style="font-family:'DM Mono',monospace;font-size:0.75rem">${s.count}</td>
@@ -1141,7 +1459,7 @@ function renderLeads(d) {
   document.getElementById('warm-count').textContent = d.warm_leads?.count || 0;
   document.getElementById('cold-count').textContent = d.cold_leads?.count || 0;
 
-  const avatarColors = ['#7c5cff','#00e5c0','#ff6b4a','#f5c842','#54a0ff','#ff9ff3'];
+  const avatarColors = ['#00e5c0','#7c5cff','#ff6b4a','#f5c842','#54a0ff','#ff9ff3'];
   function leadList(items) {
     if(!items||!items.length) return '<div style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1rem">No leads in this category</div>';
     return items.map((l,i)=>{
@@ -1200,15 +1518,15 @@ function renderROI(d) {
       labels:cls_list.map(c=>srcNames[c]||c),
       datasets:[
         {label:'Spend',data:cls_list.map(c=>roi[c].spend),backgroundColor:'rgba(255,107,74,0.7)'},
-        {label:'Revenue',data:cls_list.map(c=>roi[c].revenue),backgroundColor:'rgba(0,229,192,0.7)'}
+        {label:'Revenue',data:cls_list.map(c=>roi[c].revenue),backgroundColor:'rgba(0,229,192,0.6)'}
       ]
     },
-    options:{...chartOpts(),plugins:{legend:{labels:{color:'#6b82a0'}}}}
+    options:{...chartOpts(),plugins:{legend:{labels:{color:'#64748b'}}}}
   });
 
   mkChart('roi-leads-chart', {
     type:'doughnut',
-    data:{labels:cls_list.map(c=>srcNames[c]||c),datasets:[{data:cls_list.map(c=>roi[c].leads),backgroundColor:cls_list.map(c=>srcColors[c]),borderColor:'#050a0f',borderWidth:3}]},
+    data:{labels:cls_list.map(c=>srcNames[c]||c),datasets:[{data:cls_list.map(c=>roi[c].leads),backgroundColor:cls_list.map(c=>srcColors[c]),borderColor:'#0d1b2a',borderWidth:3}]},
     options:{...chartOpts(),plugins:{legend:{position:'right',labels:{color:'#6b82a0',font:{size:11}}}}}
   });
 }
@@ -1221,31 +1539,28 @@ function renderNotConverted(d) {
 
   document.getElementById('nc-kpis').innerHTML = [
     {label:'Not Converted', val:fmt(total), sub:'Leads who haven\'t purchased yet', c1:'#ff6b4a', c2:'#c0392b'},
-    {label:'Drop-off Rate',  val:ncRate+'%', sub:'Lifetime — of all tracked leads', c1:'#6b82a0', c2:'#4a5f7a'},
+    {label:'Drop-off Rate',  val:ncRate+'%', sub:'Lifetime — of all tracked leads', c1:'#7c5cff', c2:'#5a3fcc'},
   ].map(c=>`<div class="kpi-card" style="--c1:${c.c1};--c2:${c.c2}">
     <div class="kpi-label">${c.label}</div>
     <div class="kpi-value">${c.val}</div>
     <div class="kpi-sub">${c.sub}</div>
   </div>`).join('');
 
-  // Period breakdown — computed live from the loaded records
-  const ncRows = d.not_converted_details || [];
-  const withDsPeriod = ncRows.map(r => ({_ds: daysSince(r.last_contact) ?? r.days_since}));
-  const periodTotal  = total || 1;
+  // Period breakdown — counts pre-computed on the server (no client-side row iteration)
+  const pc          = d.not_converted_periods || {};
+  const periodTotal = total || 1;
 
   const periods = [
-    {label:'Lifetime',       sub:'All time',          min:0,   max:Infinity, c1:'#6b82a0', c2:'#4a5f7a'},
-    {label:'0 – 30 Days',    sub:'Recent contacts',   min:0,   max:30,       c1:'#ff4757', c2:'#c0392b'},
-    {label:'31 – 90 Days',   sub:'Last quarter',      min:31,  max:90,       c1:'#ffa502', c2:'#e67e00'},
-    {label:'91 – 180 Days',  sub:'Semi-annual',       min:91,  max:180,      c1:'#f5c842', c2:'#c9a400'},
-    {label:'181 – 365 Days', sub:'Last year',         min:181, max:365,      c1:'#7c5cff', c2:'#5a3fcc'},
-    {label:'Over 1 Year',    sub:'Long-term dormant', min:366, max:Infinity, c1:'#54a0ff', c2:'#2980b9'},
+    {label:'Lifetime',       sub:'All time',          key:null,        c1:'#6b82a0', c2:'#4a6080'},
+    {label:'0 – 30 Days',    sub:'Recent contacts',   key:'d0_30',     c1:'#ff4757', c2:'#c0392b'},
+    {label:'31 – 90 Days',   sub:'Last quarter',      key:'d31_90',    c1:'#ffa502', c2:'#e08000'},
+    {label:'91 – 180 Days',  sub:'Semi-annual',       key:'d91_180',   c1:'#f5c842', c2:'#c9a400'},
+    {label:'181 – 365 Days', sub:'Last year',         key:'d181_365',  c1:'#54a0ff', c2:'#2c7be5'},
+    {label:'Over 1 Year',    sub:'Long-term dormant', key:'over_365',  c1:'#7c5cff', c2:'#5a3fcc'},
   ];
 
   document.getElementById('nc-period-cards').innerHTML = periods.map(p => {
-    const count = p.label === 'Lifetime'
-      ? total
-      : withDsPeriod.filter(r => r._ds >= p.min && r._ds <= p.max).length;
+    const count = p.key === null ? total : (pc[p.key] || 0);
     const pct = ((count / periodTotal) * 100).toFixed(1);
     return `<div class="kpi-card" style="--c1:${p.c1};--c2:${p.c2}">
       <div class="kpi-label">${p.label}</div>
@@ -1281,7 +1596,7 @@ function renderNotConverted(d) {
     <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem">
       <div style="width:90px;font-size:0.72rem;color:var(--muted);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${b}">${b}</div>
       <div style="flex:1;background:var(--border);border-radius:3px;height:20px;overflow:hidden">
-        <div style="width:${cnt/maxB*100}%;height:100%;background:linear-gradient(90deg,#ff6b4a,#c0392b);border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:0.7rem;font-weight:600;white-space:nowrap">${cnt}</div>
+        <div style="width:${cnt/maxB*100}%;height:100%;background:linear-gradient(90deg,#ff4757,#c0392b);border-radius:3px;display:flex;align-items:center;padding-left:7px;font-size:0.7rem;font-weight:600;white-space:nowrap">${cnt}</div>
       </div>
     </div>`).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data</div>';
 
@@ -1297,7 +1612,12 @@ function renderNotConverted(d) {
       </div>
     </div>`).join('') || '<div style="color:var(--muted);font-size:0.85rem">No data</div>';
 
-  window._notConvRows = d.not_converted_details || [];
+  // Pre-compute _ds once here — filterNotConverted reuses it directly (no re-mapping)
+  window._ncTotal      = d.not_converted_count || 0;
+  window._notConvRows  = (d.not_converted_details || []).map(
+    r => ({...r, _ds: daysSince(r.last_contact) ?? r.days_since})
+  );
+  window._ncCurrentPage = 0;
   filterNotConverted();
 }
 

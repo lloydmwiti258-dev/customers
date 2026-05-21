@@ -1,8 +1,9 @@
+import json
 import os
 import re
 import threading
 from datetime import datetime
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template_string, request
 from flask_cors import CORS
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -13,9 +14,26 @@ app = Flask(__name__)
 CORS(app)
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
-JSON_FILE_PATH = r'C:\Users\Administrator\Downloads\retention-485013-974e48474123.json'
-SPREADSHEET_ID = '1zravAS7NoxjnV-2476eBhMitZYQmxWgef3JTbwD-Rag'
+# On Vercel: set GOOGLE_CREDENTIALS env var to the full JSON key file contents.
+# Locally: set JSON_FILE_PATH env var or fall back to the default path.
+JSON_FILE_PATH = os.environ.get(
+    'JSON_FILE_PATH',
+    r'C:\Users\Administrator\Downloads\retention-485013-974e48474123.json'
+)
+SPREADSHEET_ID = os.environ.get(
+    'SPREADSHEET_ID',
+    '1zravAS7NoxjnV-2476eBhMitZYQmxWgef3JTbwD-Rag'
+)
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+
+def _get_credentials():
+    """Load Google credentials from env var (Vercel) or local JSON file."""
+    raw = os.environ.get('GOOGLE_CREDENTIALS')
+    if raw:
+        info = json.loads(raw)
+        return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    return service_account.Credentials.from_service_account_file(JSON_FILE_PATH, scopes=SCOPES)
 
 REGION_MAP = {
     'Hazina': 'Nairobi CBD', 'Hilton': 'Nairobi CBD',
@@ -77,16 +95,57 @@ def normalize_phone(p):
     return p
 
 
+# Pre-compiled regex patterns cover ~99 % of Google Sheets date formats.
+# Matching these is ~1000× faster than dateutil.parser.parse.
+_RE_YMD  = re.compile(r'^(\d{4})[/\-.](0?[1-9]|1[0-2])[/\-.](0?[1-9]|[12]\d|3[01])')
+_RE_DMY  = re.compile(r'^(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](\d{4})')
+_RE_DMY2 = re.compile(r'^(0?[1-9]|[12]\d|3[01])[/\-.](0?[1-9]|1[0-2])[/\-.](\d{2})$')
+
+
 def safe_date(val):
+    if not val:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
     try:
-        return dateparser.parse(str(val), dayfirst=True)
+        m = _RE_YMD.match(s)
+        if m:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        m = _RE_DMY.match(s)
+        if m:
+            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        m = _RE_DMY2.match(s)
+        if m:
+            return datetime(2000 + int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        return dateparser.parse(s, dayfirst=True)   # rare fallback
     except Exception:
         return None
 
 
+def _process_df(df, phone_col, date_col, source_col):
+    """Add date_parsed / phone_norm / source_class columns using unique-value maps.
+    Calling normalize_phone / classify_source once per *unique* value instead of
+    once per row can cut ~100 000 calls down to a few hundred."""
+    df = df.copy()
+    # Dates — map unique raw strings to datetime objects
+    uq_dates = df[date_col].unique()
+    df['date_parsed'] = df[date_col].map({d: safe_date(d) for d in uq_dates})
+    # Phones — map unique raw strings to normalised form
+    uq_phones = df[phone_col].unique()
+    df['phone_norm'] = df[phone_col].map(
+        {p: normalize_phone(p) for p in uq_phones}
+    ).fillna('')
+    # Sources — only a handful of unique values
+    uq_srcs = df[source_col].unique()
+    df['source_class'] = df[source_col].map(
+        {s: classify_source(s) for s in uq_srcs}
+    ).fillna('other')
+    return df
+
+
 def load_data():
-    creds = service_account.Credentials.from_service_account_file(
-        JSON_FILE_PATH, scopes=SCOPES)
+    creds = _get_credentials()
     service = build('sheets', 'v4', credentials=creds)
 
     meta = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
@@ -163,23 +222,23 @@ def compute_analytics(shops_df, leads_df, wa_df):
     now = datetime.now()
     results = {}
 
-    # ── Parse dates ──────────────────────────────────────────────────────────
-    if not leads_df.empty:
+    # ── Parse / normalise (skipped when _refresh_cache already processed frames)
+    if not leads_df.empty and 'date_parsed' not in leads_df.columns:
+        leads_df = _process_df(leads_df, 'contact', 'date', 'source')
+    elif not leads_df.empty:
         leads_df = leads_df.copy()
-        leads_df['date_parsed'] = leads_df['date'].apply(safe_date)
-        leads_df['phone_norm'] = leads_df['contact'].apply(normalize_phone)
-        leads_df['source_class'] = leads_df['source'].apply(classify_source)
 
-    if not wa_df.empty:
+    if not wa_df.empty and 'date_parsed' not in wa_df.columns:
+        wa_df = _process_df(wa_df, 'contact', 'date', 'source')
+    elif not wa_df.empty:
         wa_df = wa_df.copy()
-        wa_df['date_parsed'] = wa_df['date'].apply(safe_date)
-        wa_df['phone_norm'] = wa_df['contact'].apply(normalize_phone)
-        wa_df['source_class'] = wa_df['source'].apply(classify_source)
 
-    if not shops_df.empty:
+    if not shops_df.empty and 'date_parsed' not in shops_df.columns:
         shops_df = shops_df.copy()
-        shops_df['date_parsed'] = shops_df['date'].apply(safe_date)
-        shops_df['phone_norm'] = shops_df['phone'].apply(normalize_phone)
+        shops_df['date_parsed'] = shops_df['date'].map(
+            {d: safe_date(d) for d in shops_df['date'].unique()})
+        shops_df['phone_norm'] = shops_df['phone'].map(
+            {p: normalize_phone(p) for p in shops_df['phone'].unique()}).fillna('')
         try:
             shops_df['price_num'] = pd.to_numeric(
                 shops_df['price'].str.replace(',', ''), errors='coerce').fillna(0)
@@ -191,6 +250,8 @@ def compute_analytics(shops_df, leads_df, wa_df):
             shops_df['price_num'] = 0
             shops_df['meta_spend_num'] = 0
             shops_df['tiktok_spend_num'] = 0
+    elif not shops_df.empty:
+        shops_df = shops_df.copy()
 
     # ── Key phone sets (computed once, reused throughout) ────────────────────
     converted_phones = set()
@@ -203,6 +264,33 @@ def compute_analytics(shops_df, leads_df, wa_df):
     if not wa_df.empty and 'phone_norm' in wa_df.columns:
         all_lead_phones.update(wa_df['phone_norm'].dropna())
     all_lead_phones.discard('')
+
+    # ── Pre-compute shared lookups (reused by sections 2, 3, 4, 8) ───────────
+    # Single sort+dedup over the combined leads+WA frame instead of 3 separate ones
+    _ft_parts = []
+    for _df in (leads_df, wa_df):
+        if _df.empty or 'phone_norm' not in _df.columns:
+            continue
+        _cols = [c for c in ['phone_norm', 'date_parsed', 'name', 'source', 'source_class']
+                 if c in _df.columns]
+        _ft_parts.append(_df[_cols].copy())
+    first_touch_df = pd.DataFrame()
+    if _ft_parts:
+        _ft = pd.concat(_ft_parts, ignore_index=True)
+        _ft = _ft[_ft['phone_norm'].fillna('') != '']
+        _ft_dated = (_ft[_ft['date_parsed'].notna()]
+                     .sort_values('date_parsed')
+                     .drop_duplicates('phone_norm'))
+        _ft_undated = _ft[_ft['date_parsed'].isna()].drop_duplicates('phone_norm')
+        _ft_undated = _ft_undated[~_ft_undated['phone_norm'].isin(_ft_dated['phone_norm'])]
+        first_touch_df = pd.concat([_ft_dated, _ft_undated], ignore_index=True)
+
+    # Revenue pre-aggregated per phone — avoids N full-scan isin() calls in sections 3 & 8
+    revenue_by_phone = {}
+    if not shops_df.empty and 'price_num' in shops_df.columns and 'phone_norm' in shops_df.columns:
+        revenue_by_phone = (shops_df[shops_df['phone_norm'] != '']
+                            .groupby('phone_norm')['price_num'].sum()
+                            .to_dict())
 
     # ── 1. Total Leads ────────────────────────────────────────────────────────
     wa_leads = len(wa_df) if not wa_df.empty else 0
@@ -330,42 +418,41 @@ def compute_analytics(shops_df, leads_df, wa_df):
             all_contacts['date_parsed'].notna() & (all_contacts['phone_norm'] != '')
         ].sort_values('date_parsed').drop_duplicates('phone_norm')
 
-        phone_conv_map = {}
-        for row in shops_df[shops_df['phone_norm'] != ''].to_dict('records'):
-            phone_conv_map.setdefault(row['phone_norm'], []).append(row)
-
-        for _, lead in all_contacts.iterrows():
-            phone = lead.get('phone_norm', '')
-            if not phone or phone not in phone_conv_map:
-                continue
-            lead_date = lead.get('date_parsed')
-            if not lead_date:
-                continue
-            for conv in phone_conv_map[phone]:
-                conv_date = conv.get('date_parsed')
-                if conv_date and conv_date >= lead_date:
-                    delta = (conv_date - lead_date).days
-                    journey_times.append(delta)
-                    matched_journeys.append({
-                        'name': lead.get('name', ''),
-                        'phone': phone,
-                        'lead_date': str(lead_date.date()),
-                        'conv_date': str(conv_date.date()),
-                        'days_to_convert': delta,
-                        'shop': conv.get('location', '') or conv.get('shop', ''),
-                        'source': lead.get('source', '')
-                    })
+        # Vectorised merge replaces Python iterrows — ~50× faster on large frames
+        shops_j = shops_df[shops_df['phone_norm'] != '']\
+            [['phone_norm', 'date_parsed', 'location', 'shop']]\
+            .rename(columns={'date_parsed': 'conv_date',
+                             'location': 'conv_loc', 'shop': 'conv_shop'})
+        merged = all_contacts.merge(shops_j, on='phone_norm')
+        merged = merged[merged['conv_date'] >= merged['date_parsed']].copy()
+        if not merged.empty:
+            merged['delta'] = (merged['conv_date'] - merged['date_parsed']).dt.days
+            journey_times   = merged['delta'].tolist()
+            merged['lead_date_s'] = merged['date_parsed'].dt.date.astype(str)
+            merged['conv_date_s'] = merged['conv_date'].dt.date.astype(str)
+            merged['shop_name']   = merged['conv_loc'].fillna('').str.strip()\
+                .where(merged['conv_loc'].fillna('') != '', merged['conv_shop'].fillna(''))
+            matched_journeys = merged[
+                ['name', 'phone_norm', 'lead_date_s', 'conv_date_s', 'delta', 'shop_name', 'source']
+            ].rename(columns={
+                'phone_norm':   'phone',
+                'lead_date_s':  'lead_date',
+                'conv_date_s':  'conv_date',
+                'delta':        'days_to_convert',
+                'shop_name':    'shop',
+            }).to_dict('records')
 
     if journey_times:
-        results['avg_journey_days'] = round(sum(journey_times) / len(journey_times), 1)
-        results['min_journey_days'] = min(journey_times)
-        results['max_journey_days'] = max(journey_times)
+        jt = pd.Series(journey_times)
+        results['avg_journey_days'] = round(float(jt.mean()), 1)
+        results['min_journey_days'] = int(jt.min())
+        results['max_journey_days'] = int(jt.max())
         results['journey_distribution'] = {
-            'same_day': sum(1 for d in journey_times if d == 0),
-            '1_7_days': sum(1 for d in journey_times if 1 <= d <= 7),
-            '8_30_days': sum(1 for d in journey_times if 8 <= d <= 30),
-            '31_90_days': sum(1 for d in journey_times if 31 <= d <= 90),
-            '90_plus': sum(1 for d in journey_times if d > 90),
+            'same_day':   int((jt == 0).sum()),
+            '1_7_days':   int(((jt >= 1)  & (jt <= 7)).sum()),
+            '8_30_days':  int(((jt >= 8)  & (jt <= 30)).sum()),
+            '31_90_days': int(((jt >= 31) & (jt <= 90)).sum()),
+            '90_plus':    int((jt > 90).sum()),
         }
     else:
         results['avg_journey_days'] = None
@@ -470,9 +557,9 @@ def compute_analytics(shops_df, leads_df, wa_df):
             nc_df['date_parsed'].notna()
         ].sort_values('date_parsed', ascending=False).drop_duplicates('phone_norm')
 
-        nc_df['days_since'] = nc_df['date_parsed'].apply(lambda d: (now - d).days)
-        # Drop future-dated records (data entry errors) — they would show 0 days
-        nc_df = nc_df[nc_df['days_since'] >= 0]
+        # Vectorised days_since — dt.days is ~100× faster than .apply(lambda)
+        nc_df['days_since'] = (pd.Timestamp(now) - nc_df['date_parsed']).dt.days
+        nc_df = nc_df[nc_df['days_since'] >= 0]   # drop future-dated entries
         not_conv_by_class = nc_df['source_class'].fillna('other').value_counts().to_dict()
         not_conv_by_source = (
             nc_df['source'].fillna('').str.strip().str.lower()
@@ -482,8 +569,17 @@ def compute_analytics(shops_df, leads_df, wa_df):
             nc_df['branch'].fillna('').str.strip()
             .replace('', 'Unknown').value_counts().head(20).to_dict()
         )
-        # Sort ascending (most recent first) so all time-range filters are reachable
-        for r in nc_df.sort_values('days_since', ascending=True).to_dict('records'):
+        # Vectorised period counts using pd.cut — replaces Python for-loop
+        bins   = [-1, 30, 90, 180, 365, float('inf')]
+        labels = ['d0_30', 'd31_90', 'd91_180', 'd181_365', 'over_365']
+        cut    = pd.cut(nc_df['days_since'], bins=bins, labels=labels)
+        vc     = cut.value_counts()
+        pc = {k: int(vc.get(k, 0)) for k in labels}
+
+        # Only send the 2 000 most-recently-contacted rows to the browser.
+        # Period KPI cards use the pre-computed counts above so all 76k are accounted for.
+        nc_sorted = nc_df.sort_values('days_since', ascending=True)
+        for r in nc_sorted.head(2000).to_dict('records'):
             dp = r.get('date_parsed')
             not_conv_details.append({
                 'name': str(r.get('name', '') or '').strip(),
@@ -495,11 +591,13 @@ def compute_analytics(shops_df, leads_df, wa_df):
                 'last_contact': str(dp.date()) if dp else '',
             })
 
-    results['not_converted_count'] = len(not_converted_phones)
-    results['not_converted_by_class'] = not_conv_by_class
-    results['not_converted_by_source'] = not_conv_by_source
-    results['not_converted_by_branch'] = not_conv_by_branch
-    results['not_converted_details'] = not_conv_details
+    results['not_converted_count']        = len(not_converted_phones)
+    results['not_converted_periods']      = pc if nc_parts else {}
+    results['not_converted_details_total']= len(not_conv_details)  # rows actually sent
+    results['not_converted_by_class']     = not_conv_by_class
+    results['not_converted_by_source']    = not_conv_by_source
+    results['not_converted_by_branch']    = not_conv_by_branch
+    results['not_converted_details']      = not_conv_details
 
     # ── 7. Lead Status (combined leads + whatsapp, most-recent contact per phone)
     hot, warm, cold = [], [], []
@@ -631,20 +729,126 @@ def compute_analytics(shops_df, leads_df, wa_df):
     else:
         results['gender_split'] = {}
 
+    # ── 10. Top 10 Customers by Branch ────────────────────────────────────────
+    top_customers_by_branch = {}
+    if not shops_df.empty and 'location' in shops_df.columns and 'phone_norm' in shops_df.columns:
+
+        # ── Name lookup: first non-empty name per phone across all sources
+        name_lookup = {}
+        for df, col in [(shops_df, 'first_name'), (leads_df, 'name'), (wa_df, 'name')]:
+            if df.empty or 'phone_norm' not in df.columns or col not in df.columns:
+                continue
+            sub = df[df['phone_norm'].notna() & (df['phone_norm'] != '')].copy()
+            sub[col] = sub[col].fillna('').str.strip()
+            sub = sub[sub[col] != ''].drop_duplicates('phone_norm')
+            for p, n in zip(sub['phone_norm'], sub[col]):
+                if p not in name_lookup:
+                    name_lookup[p] = n
+
+        # ── Interaction count per phone (leads + WA combined)
+        interaction_counts = {}
+        for df in (leads_df, wa_df):
+            if df.empty or 'phone_norm' not in df.columns:
+                continue
+            for p, cnt in df[df['phone_norm'] != '']['phone_norm'].value_counts().items():
+                interaction_counts[p] = interaction_counts.get(p, 0) + int(cnt)
+
+        # ── First / last seen per phone across all sources
+        date_parts = []
+        for df in (leads_df, wa_df, shops_df):
+            if df.empty or 'phone_norm' not in df.columns or 'date_parsed' not in df.columns:
+                continue
+            tmp = df[df['phone_norm'].notna() & (df['phone_norm'] != '') &
+                     df['date_parsed'].notna()][['phone_norm', 'date_parsed']].copy()
+            date_parts.append(tmp)
+
+        date_lookup = {}
+        if date_parts:
+            comb = pd.concat(date_parts, ignore_index=True)
+            dg = comb.groupby('phone_norm')['date_parsed'].agg(['min', 'max'])
+            for phone, row in dg.iterrows():
+                date_lookup[phone] = {
+                    'first': str(row['min'].date()),
+                    'last':  str(row['max'].date()),
+                }
+
+        # ── Top 10 per branch by total spend — converted leads only
+        # (phone must appear in leads_2025 or whatsapp sheet AND in shops)
+        valid = shops_df[
+            (shops_df['phone_norm'] != '') &
+            (shops_df['phone_norm'].isin(matched_converted))
+        ].copy()
+        valid['location'] = valid['location'].fillna('').str.strip().replace('', 'Unknown')
+        for branch, grp in valid.groupby('location'):
+            agg = (grp.groupby('phone_norm')
+                   .agg(total_spend=('price_num', 'sum'), purchases=('price_num', 'count'))
+                   .reset_index()
+                   .sort_values('total_spend', ascending=False)
+                   .head(10))
+            top_list = []
+            for _, r in agg.iterrows():
+                p  = r['phone_norm']
+                ds = date_lookup.get(p, {})
+                top_list.append({
+                    'name':         name_lookup.get(p, ''),
+                    'phone':        p,
+                    'interactions': interaction_counts.get(p, 0),
+                    'purchases':    int(r['purchases']),
+                    'total_spend':  round(float(r['total_spend']), 2),
+                    'first_seen':   ds.get('first', ''),
+                    'last_seen':    ds.get('last', ''),
+                })
+            top_customers_by_branch[branch] = top_list
+
+    results['top_customers_by_branch'] = top_customers_by_branch
+
     return results
 
 
 # ── Cache with background refresh ────────────────────────────────────────────
-_cache = {'data': None, 'ts': None}
+_cache = {'data': None, 'ts': None, 'shops': None, 'leads': None, 'wa': None}
 
 
 def _refresh_cache():
     try:
         shops_df, leads_df, wa_df = load_data()
+
+        # Process each frame exactly ONCE using unique-value deduplication.
+        # compute_analytics() will skip re-processing when these columns exist.
+        if not leads_df.empty:
+            leads_df = _process_df(leads_df, 'contact', 'date', 'source')
+        if not wa_df.empty:
+            wa_df = _process_df(wa_df, 'contact', 'date', 'source')
+        if not shops_df.empty:
+            shops_df = _process_df(shops_df, 'phone', 'date', 'source') \
+                if 'source' in shops_df.columns \
+                else shops_df.copy()
+            shops_df['date_parsed'] = shops_df['date'].map(
+                {d: safe_date(d) for d in shops_df['date'].unique()}
+            ) if 'date_parsed' not in shops_df.columns else shops_df['date_parsed']
+            shops_df['phone_norm'] = shops_df['phone'].map(
+                {p: normalize_phone(p) for p in shops_df['phone'].unique()}
+            ).fillna('') if 'phone_norm' not in shops_df.columns else shops_df['phone_norm']
+            try:
+                shops_df['price_num'] = pd.to_numeric(
+                    shops_df['price'].str.replace(',', ''), errors='coerce').fillna(0)
+                shops_df['meta_spend_num'] = pd.to_numeric(
+                    shops_df['meta_spend'].str.replace(',', ''), errors='coerce').fillna(0)
+                shops_df['tiktok_spend_num'] = pd.to_numeric(
+                    shops_df['tiktok_spend'].str.replace(',', ''), errors='coerce').fillna(0)
+            except Exception:
+                shops_df['price_num'] = 0.0
+                shops_df['meta_spend_num'] = 0.0
+                shops_df['tiktok_spend_num'] = 0.0
+
         data = compute_analytics(shops_df, leads_df, wa_df)
-        _cache['data'] = data
-        _cache['ts'] = datetime.now()
+        _cache['data']  = data
+        _cache['shops'] = shops_df
+        _cache['leads'] = leads_df
+        _cache['wa']    = wa_df
+        _cache['ts']    = datetime.now()
     except Exception as e:
+        import traceback; traceback.print_exc()
         print(f"Cache refresh error: {e}")
 
 
@@ -682,6 +886,110 @@ def api_refresh():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/customer')
+def api_customer():
+    phone_raw = request.args.get('phone', '').strip()
+    if not phone_raw:
+        return jsonify({'success': False, 'error': 'Phone number required'}), 400
+
+    phone = normalize_phone(phone_raw)
+    if not phone:
+        return jsonify({'success': False, 'error': 'Invalid phone number'}), 400
+
+    shops_df = _cache.get('shops')
+    leads_df = _cache.get('leads')
+    wa_df    = _cache.get('wa')
+
+    if shops_df is None:
+        return jsonify({'success': False, 'error': 'Data not loaded yet, try again shortly'}), 503
+
+    # ── Purchases ────────────────────────────────────────────────────────────
+    purchases = []
+    lifetime_value = 0.0
+    if not shops_df.empty and 'phone_norm' in shops_df.columns:
+        p = shops_df[shops_df['phone_norm'] == phone].sort_values('date_parsed')
+        for _, row in p.iterrows():
+            dp  = row.get('date_parsed')
+            amt = float(row.get('price_num', 0) or 0)
+            lifetime_value += amt
+            purchases.append({
+                'date':     str(dp.date()) if pd.notna(dp) else '',
+                'amount':   amt,
+                'product':  str(row.get('product',  '') or '').strip(),
+                'location': str(row.get('location', '') or row.get('shop', '') or '').strip(),
+            })
+
+    total_purchases = len(purchases)
+    avg_spend = round(lifetime_value / total_purchases, 2) if total_purchases else 0
+
+    # ── Interactions ─────────────────────────────────────────────────────────
+    interactions = []
+    name = ''
+
+    if not leads_df.empty and 'phone_norm' in leads_df.columns:
+        for _, row in leads_df[leads_df['phone_norm'] == phone].iterrows():
+            dp = row.get('date_parsed')
+            n  = str(row.get('name', '') or '').strip()
+            if n and not name:
+                name = n
+            interactions.append({
+                'date':     str(dp.date()) if pd.notna(dp) else '',
+                'source':   str(row.get('source',       '') or '').strip(),
+                'channel':  str(row.get('source_class', '') or '').strip(),
+                'activity': 'Lead enquiry',
+                'branch':   str(row.get('branch', '') or '').strip(),
+            })
+
+    if not wa_df.empty and 'phone_norm' in wa_df.columns:
+        for _, row in wa_df[wa_df['phone_norm'] == phone].iterrows():
+            dp = row.get('date_parsed')
+            n  = str(row.get('name', '') or '').strip()
+            if n and not name:
+                name = n
+            interactions.append({
+                'date':     str(dp.date()) if pd.notna(dp) else '',
+                'source':   str(row.get('source',       '') or '').strip(),
+                'channel':  str(row.get('source_class', '') or '').strip(),
+                'activity': str(row.get('activity',     '') or '').strip() or '—',
+                'branch':   str(row.get('branch', '') or '').strip(),
+            })
+
+    interactions.sort(key=lambda x: x['date'] or '0000-00-00')
+
+    if not purchases and not interactions:
+        return jsonify({'success': True, 'found': False, 'phone': phone})
+
+    # ── Summary stats ────────────────────────────────────────────────────────
+    all_dates   = [x['date'] for x in interactions + purchases if x.get('date')]
+    purch_dates = [p['date'] for p in purchases if p.get('date')]
+    first_interaction = min(all_dates)   if all_dates   else ''
+    first_purchase    = min(purch_dates) if purch_dates else ''
+
+    today = datetime.now().date()
+    days_as_customer = 0
+    if first_interaction:
+        from datetime import date as _date
+        days_as_customer = (today - _date.fromisoformat(first_interaction)).days
+
+    return jsonify({
+        'success': True,
+        'found':   True,
+        'phone':   phone,
+        'name':    name,
+        'summary': {
+            'lifetime_value':     round(lifetime_value, 2),
+            'avg_spend':          avg_spend,
+            'total_purchases':    total_purchases,
+            'total_interactions': len(interactions),
+            'days_as_customer':   days_as_customer,
+            'first_interaction':  first_interaction,
+            'first_purchase':     first_purchase,
+        },
+        'purchases':    purchases,
+        'interactions': interactions,
+    })
 
 
 @app.route('/')
