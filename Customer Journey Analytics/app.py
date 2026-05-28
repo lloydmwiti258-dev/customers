@@ -53,11 +53,14 @@ REGION_MAP = {
 META_KEYWORDS = {'facebook', 'instagram', 'meta', 'liz'}
 META_EXACT    = {'ig'}
 
-# TikTok: only tiktok variants
+# TikTok: tiktok ad, tiktok direct, tik tok …
 TIKTOK_SOURCES = {'tik tok', 'tiktok'}
 
-# Organic: anything containing "direct" (covers direct, e direct, e-direct,
-#          direct ig, new direct, direct-ig …) plus existing customers
+# Twitter
+TWITTER_KEYWORDS = {'twitter'}
+
+# Organic: anything containing "direct" (covers direct, instagram direct,
+#          e-direct, new direct …) plus existing customers
 ORGANIC_EXACT = {'existing'}
 
 
@@ -80,7 +83,10 @@ def classify_source(src):
     # Meta paid social — keyword match or exact 'ig'
     if s in META_EXACT or any(k in s for k in META_KEYWORDS):
         return 'meta'
-    # Everything else: website, web check out, unrecognised
+    # Twitter
+    if any(k in s for k in TWITTER_KEYWORDS):
+        return 'twitter'
+    # Everything else
     return 'other'
 
 
@@ -162,7 +168,7 @@ def load_data():
     leads_idx = wa_idx = None
     if leads_sheet:
         leads_idx = len(ranges)
-        ranges.append(f"'{leads_sheet}'!A:E")
+        ranges.append(f"'{leads_sheet}'!A:F")
     if wa_sheet:
         wa_idx = len(ranges)
         ranges.append(f"'{wa_sheet}'!A:F")
@@ -208,7 +214,7 @@ def load_data():
     leads_df = pd.DataFrame()
     if leads_idx is not None and leads_idx < len(vranges):
         leads_df = parse_vrange(vranges[leads_idx],
-                                ['date', 'contact', 'name', 'branch', 'source'])
+                                ['date', 'contact', 'name', 'branch', 'source', 'platform'])
 
     wa_df = pd.DataFrame()
     if wa_idx is not None and wa_idx < len(vranges):
@@ -645,9 +651,9 @@ def compute_analytics(shops_df, leads_df, wa_df):
         meta_spend_total = shops_df['meta_spend_num'].sum()
         tiktok_spend_total = shops_df['tiktok_spend_num'].sum()
 
-    revenue_by_class = {'meta': 0, 'tiktok': 0, 'organic': 0, 'other': 0}
-    leads_by_class   = {'meta': 0, 'tiktok': 0, 'organic': 0, 'other': 0}
-    conv_by_class    = {'meta': 0, 'tiktok': 0, 'organic': 0, 'other': 0}
+    revenue_by_class = {'meta': 0, 'tiktok': 0, 'twitter': 0, 'organic': 0, 'other': 0}
+    leads_by_class   = {'meta': 0, 'tiktok': 0, 'twitter': 0, 'organic': 0, 'other': 0}
+    conv_by_class    = {'meta': 0, 'tiktok': 0, 'twitter': 0, 'organic': 0, 'other': 0}
 
     # Build a combined first-touch frame (leads_df + wa_df).
     # For phones in both sheets keep the EARLIEST contact date so the source
@@ -678,10 +684,10 @@ def compute_analytics(shops_df, leads_df, wa_df):
                     revenue_by_class[cls] = float(rev)
 
     spend = {'meta': float(meta_spend_total), 'tiktok': float(tiktok_spend_total),
-             'organic': 0, 'other': 0}
+             'twitter': 0, 'organic': 0, 'other': 0}
 
     source_roi = {}
-    for cls in ['meta', 'tiktok', 'organic', 'other']:
+    for cls in ['meta', 'tiktok', 'twitter', 'organic', 'other']:
         s = spend[cls]
         rev = revenue_by_class[cls]
         roi = round((rev - s) / s * 100, 1) if s > 0 else None
